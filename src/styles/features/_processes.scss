@@ -1,0 +1,76 @@
+@use "../abstracts" as *;
+
+.processes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: $card-gap;
+  align-items: start;
+
+  // Keep the detail panel beside the table until the sidebar collapses.
+  @include below($bp-standard) {
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
+
+  @include below($bp-compact) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  &__table {
+    max-height: calc(100vh - #{$topbar-height} - 190px);
+  }
+
+  &__detail {
+    position: sticky;
+    top: 0;
+  }
+
+  &__detail-name {
+    @include truncate;
+    font-size: $font-lg;
+    font-weight: $weight-semibold;
+  }
+
+  &__path {
+    @include mono-num;
+    font-size: $font-sm;
+    overflow-wrap: anywhere;
+  }
+
+  &__end {
+    align-self: flex-start;
+  }
+}
+
+// Not a .panel: its position: relative would pull the modal out of the centered top layer.
+.confirm-dialog {
+  @include surface(var(--color-bg-tertiary));
+  width: min(420px, calc(100vw - 32px));
+  margin: auto;
+  padding: $space-5;
+  color: var(--color-text-primary);
+
+  &::backdrop { background: rgb(0 0 0 / 60%); }
+
+  &__title {
+    font-size: $font-lg;
+    font-weight: $weight-semibold;
+    overflow-wrap: anywhere;
+  }
+
+  &__text {
+    margin-top: $space-2;
+    color: var(--color-text-secondary);
+  }
+
+  &__error {
+    margin-top: $space-2;
+    color: var(--color-danger);
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: $space-2;
+    margin-top: $space-4;
+  }
+}

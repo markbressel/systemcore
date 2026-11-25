@@ -1,0 +1,26 @@
+@use "../abstracts" as *;
+
+// Formatted measurement: number + smaller unit. (The old metric-card block was replaced by the overview cockpit.)
+.metric-value {
+  @include mono-num;
+  font-weight: $weight-semibold;
+
+  &__unit {
+    margin-left: 0.2em;
+    color: var(--color-accent);
+    font-size: 0.5em;
+    font-weight: $weight-medium;
+  }
+
+  // Unavailable data reads as text, never as a number.
+  &--missing {
+    font-family: $font-family-base;
+    color: var(--color-text-muted);
+    font-size: 0.6em;
+    font-weight: $weight-medium;
+  }
+
+  &--error {
+    color: var(--color-danger);
+  }
+}

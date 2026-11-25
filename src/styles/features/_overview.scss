@@ -1,0 +1,281 @@
+@use "../abstracts" as *;
+
+// Large numbers on the overview use the HUD display face instead of mono.
+.cockpit,
+.cockpit-stats,
+.net-split {
+  .metric-value:not(.metric-value--missing) {
+    @include display-num;
+  }
+}
+
+@mixin bare-button {
+  display: flex;
+  color: inherit;
+  text-align: center;
+  cursor: pointer;
+  border-radius: $radius-xl;
+}
+
+// Trapezoid name plate with hatched fill (banner above / plate below the memory readout).
+@mixin hatched-plate($clip) {
+  padding: 5px 30px;
+  background: repeating-linear-gradient(135deg, var(--color-accent-soft) 0 3px, transparent 3px 6px), var(--color-bg-secondary);
+  clip-path: $clip;
+}
+
+.cockpit {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.62fr) minmax(0, 1fr);
+  align-items: center;
+  aspect-ratio: 2.5;
+  padding: 0 4%;
+
+  &__bezel {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 14px rgb(240 120 50 / 0.14));
+    pointer-events: none;
+  }
+
+  &__bezel-shape {
+    stroke: var(--color-accent);
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+  }
+
+  &__bezel-inner {
+    fill: none;
+    stroke: var(--color-accent);
+    stroke-opacity: 0.3;
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+
+  &__dial {
+    @include bare-button;
+    position: relative;
+    justify-content: center;
+    padding: 6%;
+
+    .gauge {
+      transition: filter $duration-hover ease;
+    }
+
+    &:hover .gauge {
+      filter: brightness(1.15) drop-shadow(0 0 10px rgb(240 120 50 / 0.25));
+    }
+  }
+
+  &__center {
+    @include bare-button;
+    position: relative;
+    flex-direction: column;
+    align-items: center;
+    gap: $space-2;
+    padding: $space-4 0;
+  }
+
+  &__banner {
+    @include label-caps($font-sm);
+    @include hatched-plate(polygon(8% 0, 92% 0, 100% 100%, 0 100%));
+    color: var(--color-text-primary);
+  }
+
+  &__big {
+    font-size: 64px;
+    line-height: 1;
+  }
+
+  &__bar {
+    display: block;
+    width: 100%;
+    height: 18px;
+    padding: 2px;
+    border: 1px solid var(--color-text-secondary);
+    transform: skewX(-24deg);
+  }
+
+  &__bar-fill {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-text-primary) 0 18%, var(--color-accent-active) 22%, var(--color-accent));
+  }
+
+  &__sub {
+    font-family: $font-family-display;
+    font-size: $font-xl;
+    font-weight: $weight-semibold;
+  }
+
+  &__plate {
+    @include hatched-plate(polygon(0 0, 100% 0, 92% 100%, 8% 100%));
+    color: var(--color-text-secondary);
+    font-family: $font-family-display;
+    font-size: 13px;
+
+    strong {
+      color: var(--color-text-primary);
+      font-weight: $weight-semibold;
+    }
+  }
+
+  &__center:hover &__banner {
+    color: var(--color-accent);
+  }
+}
+
+.cockpit-stats {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: $space-10;
+  padding: 0 4%;
+
+  @include below($bp-compact) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: $space-5;
+  }
+
+  &__column {
+    display: flex;
+    flex-direction: column;
+    gap: $space-2;
+  }
+
+  &__disk {
+    @include bare-button;
+    flex-direction: column;
+    align-items: center;
+    gap: $space-1;
+    padding: $space-3 $space-5;
+
+    &:hover .cockpit-stats__disk-title {
+      text-decoration: underline;
+    }
+  }
+
+  &__disk-title {
+    color: var(--color-accent);
+    font-family: $font-family-display;
+    font-size: $font-lg;
+    font-weight: $weight-semibold;
+
+    strong {
+      margin-left: $space-3;
+      color: var(--color-text-primary);
+    }
+  }
+
+  &__disk-value {
+    font-size: 60px;
+    line-height: 1.05;
+  }
+
+  &__marker {
+    width: 0;
+    height: 0;
+    border-left: 9px solid transparent;
+    border-right: 9px solid transparent;
+    border-bottom: 14px solid var(--color-accent);
+
+    &--danger {
+      border-bottom-color: var(--color-danger);
+    }
+  }
+
+  &__warning {
+    color: var(--color-danger);
+    font-size: $font-sm;
+    font-weight: $weight-medium;
+  }
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) auto;
+  align-items: end;
+  gap: $space-6;
+  padding: 6px 0;
+
+  &__meta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  &__label {
+    @include truncate;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+  }
+
+  &__track {
+    display: block;
+    height: 7px;
+    max-width: 230px;
+    background: var(--color-bg-secondary);
+  }
+
+  &__fill {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-accent-soft), var(--color-accent));
+  }
+
+  &__value {
+    font-size: 26px;
+    line-height: 1;
+    white-space: nowrap;
+
+    // Hints like "Run LibreHardwareMonitor to enable" wrap instead of squeezing the label.
+    .metric-value--missing {
+      display: block;
+      max-width: 150px;
+      font-size: 12px;
+      line-height: 1.3;
+      text-align: right;
+      white-space: normal;
+    }
+  }
+}
+
+.net-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $space-6;
+
+  @include below($bp-compact) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+    gap: $space-3;
+  }
+
+  &__caption {
+    display: flex;
+    align-items: baseline;
+    gap: $space-2;
+    color: var(--color-text-secondary);
+    font-family: $font-family-display;
+    font-size: $font-md;
+
+    .metric-value {
+      color: var(--color-text-primary);
+      font-size: 20px;
+    }
+  }
+
+  &__icon {
+    align-self: center;
+    width: 16px;
+    height: 16px;
+  }
+}

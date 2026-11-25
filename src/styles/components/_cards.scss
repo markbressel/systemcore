@@ -1,0 +1,118 @@
+@use "../abstracts" as *;
+
+// Section-level container (one step below cards in the surface hierarchy).
+.panel {
+  @include surface(var(--color-bg-tertiary));
+  @include hud-corners;
+  display: flex;
+  flex-direction: column;
+  gap: $space-4;
+  min-width: 0;
+  padding: $space-5;
+
+  &__header {
+    @include flex-between;
+    flex-wrap: wrap;
+    gap: $space-3;
+  }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    font-size: $font-md;
+    font-weight: $weight-semibold;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  &__icon {
+    width: 18px;
+    height: 18px;
+    color: var(--color-accent);
+  }
+
+  &__aside {
+    display: flex;
+    align-items: center;
+    gap: $space-4;
+    color: var(--color-text-secondary);
+    font-size: $font-sm;
+  }
+
+  &__group-title {
+    @include label-caps;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-text-muted);
+    margin-bottom: $space-3;
+  }
+
+  &--flush {
+    padding: 0;
+    overflow: hidden;
+  }
+}
+
+// Label / value pairs.
+.stat-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: $space-4 $space-5;
+
+  &--single {
+    grid-template-columns: minmax(0, 1fr);
+    gap: $space-3;
+  }
+
+  &__label {
+    @include label-caps(10px);
+    color: var(--color-text-muted);
+  }
+
+  &__value {
+    margin-top: 2px;
+    color: var(--color-text-primary);
+    font-weight: $weight-medium;
+    overflow-wrap: anywhere;
+
+    .metric-value--missing {
+      font-size: 13px;
+    }
+
+    .metric-value__unit {
+      font-size: 0.8em;
+    }
+  }
+}
+
+// Big hero number used at the top of detail views.
+.readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-8;
+
+  &__label {
+    @include label-caps(10px);
+    display: flex;
+    align-items: center;
+    gap: $space-1;
+    color: var(--color-text-muted);
+    margin-bottom: $space-1;
+  }
+
+  &__value {
+    font-size: 40px;
+    line-height: 1;
+
+    .metric-value {
+      @include display-num;
+    }
+  }
+
+  &__value--sm {
+    font-size: 26px;
+  }
+}

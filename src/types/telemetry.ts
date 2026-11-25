@@ -1,0 +1,180 @@
+// Mirror of src-tauri/src/domain.rs and hardware.rs — keep in sync.
+
+export type MetricStatus =
+  | "available"
+  | "initializing"
+  | "unsupported"
+  | "temporarily_unavailable"
+  | "error";
+
+export interface Metric<T> {
+  value: T | null;
+  unit: string;
+  status: MetricStatus;
+  source: string;
+  /** Unix epoch ms */
+  sampledAt: number | null;
+  /** Short hint shown when the value is missing (what would enable it). */
+  note: string | null;
+}
+
+export interface CpuSnapshot {
+  usagePercent: Metric<number>;
+  perCorePercent: Metric<number[]>;
+  frequencyMhz: Metric<number>;
+  baseFrequencyMhz: Metric<number>;
+  /** Highest effective clock seen this session (scale for the frequency bar). */
+  peakFrequencyMhz: Metric<number>;
+  temperatureC: Metric<number>;
+}
+
+export interface MemorySnapshot {
+  totalBytes: Metric<number>;
+  usedBytes: Metric<number>;
+  availableBytes: Metric<number>;
+  usagePercent: Metric<number>;
+  swapTotalBytes: Metric<number>;
+  swapUsedBytes: Metric<number>;
+  committedBytes: Metric<number>;
+  commitLimitBytes: Metric<number>;
+}
+
+export interface GpuSnapshot {
+  id: string;
+  model: string | null;
+  vendor: string | null;
+  usagePercent: Metric<number>;
+  vramUsedBytes: Metric<number>;
+  vramTotalBytes: Metric<number>;
+  sharedUsedBytes: Metric<number>;
+  temperatureC: Metric<number>;
+  coreClockMhz: Metric<number>;
+  maxCoreClockMhz: Metric<number>;
+  memoryClockMhz: Metric<number>;
+  powerWatts: Metric<number>;
+  fanPercent: Metric<number>;
+}
+
+export interface AdapterSnapshot {
+  name: string;
+  mac: string;
+  /** Windows operational status: "Up", "Down", "Dormant", "NotPresent", ... */
+  status: string;
+  rxBytesPerSec: Metric<number>;
+  txBytesPerSec: Metric<number>;
+  totalRxBytes: number;
+  totalTxBytes: number;
+}
+
+export interface NetworkSnapshot {
+  rxBytesPerSec: Metric<number>;
+  txBytesPerSec: Metric<number>;
+  adapters: AdapterSnapshot[];
+}
+
+export interface SystemSnapshot {
+  cpu: CpuSnapshot;
+  memory: MemorySnapshot;
+  gpus: Metric<GpuSnapshot[]>;
+  network: NetworkSnapshot;
+  uptimeSecs: Metric<number>;
+  processCount: Metric<number>;
+  sampledAt: number;
+}
+
+export interface ProcessInfo {
+  pid: number;
+  parentPid: number | null;
+  name: string;
+  cpuPercent: number | null;
+  /** null when Windows denies access to the process */
+  memoryBytes: number | null;
+  status: string;
+  /** Unix epoch seconds */
+  startTime: number;
+  exe: string | null;
+}
+
+export interface ProcessesSnapshot {
+  processes: ProcessInfo[];
+  sampledAt: number;
+}
+
+export interface DiskInfo {
+  name: string;
+  mountPoint: string;
+  fileSystem: string;
+  kind: string;
+  removable: boolean;
+  /** "Healthy" | "Warning" | "Unhealthy" | "Unknown" */
+  health: string | null;
+  model: string | null;
+  totalBytes: number;
+  availableBytes: number;
+  readBytesPerSec: Metric<number>;
+  writeBytesPerSec: Metric<number>;
+}
+
+export interface DisksSnapshot {
+  disks: DiskInfo[];
+  sampledAt: number;
+}
+
+export interface Latest {
+  system: SystemSnapshot | null;
+  processes: ProcessesSnapshot | null;
+  disks: DisksSnapshot | null;
+  error: string | null;
+}
+
+export interface BoardInfo {
+  vendor: string | null;
+  name: string | null;
+  version: string | null;
+}
+
+export interface HardwareInfo {
+  cpu: {
+    brand: string | null;
+    vendor: string | null;
+    architecture: string;
+    physicalCores: number | null;
+    logicalProcessors: number;
+  };
+  memoryTotalBytes: number | null;
+  memoryModules: {
+    slot: string | null;
+    capacityBytes: number | null;
+    speedMts: number | null;
+    configuredSpeedMts: number | null;
+    kind: string | null;
+    manufacturer: string | null;
+    partNumber: string | null;
+  }[];
+  os: {
+    name: string | null;
+    version: string | null;
+    longVersion: string | null;
+    kernel: string | null;
+    hostName: string | null;
+  };
+  motherboard: BoardInfo;
+  system: BoardInfo;
+  gpus: { model: string | null; vendor: string | null; vramTotalBytes: number | null }[];
+  networkAdapters: { name: string; mac: string }[];
+}
+
+export type SpeedPhase = "connecting" | "ping" | "download" | "upload" | "done";
+
+/** Mirror of src-tauri/src/speedtest.rs `Progress` (also the final result). */
+export interface SpeedProgress {
+  phase: SpeedPhase | null;
+  /** 0–1 across the whole test */
+  progress: number;
+  pingMs: number | null;
+  jitterMs: number | null;
+  downloadMbps: number | null;
+  uploadMbps: number | null;
+  /** Cloudflare data center code, e.g. "BUD" */
+  server: string | null;
+}

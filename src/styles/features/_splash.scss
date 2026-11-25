@@ -1,0 +1,126 @@
+@use "../abstracts" as *;
+
+// Full-window startup screen (ignition sweep).
+.ignition {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: $space-8;
+  padding: $space-8;
+  background: radial-gradient(ellipse at 50% 55%, var(--color-accent-soft) 0%, var(--color-bg-primary) 62%);
+  cursor: pointer;
+  transition: opacity 500ms ease;
+
+  &::before {
+    @include triangle-pattern;
+    content: "";
+    position: absolute;
+    inset: 0;
+    mask-image: radial-gradient(ellipse at 50% 50%, transparent 35%, rgb(0 0 0 / 0.6) 100%);
+    pointer-events: none;
+  }
+
+  &--exit,
+  &--done {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  &__brand {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $space-3;
+    animation: ignition-brand 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  &__logo {
+    width: 110px;
+    height: 110px;
+    filter: drop-shadow(0 0 24px rgb(240 120 50 / 0.35));
+  }
+
+  &__wordmark {
+    font-family: $font-family-display;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+
+    span {
+      color: var(--color-accent);
+    }
+  }
+
+  &__dials {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 300px));
+    gap: clamp(32px, 8vw, 120px);
+    width: min(100%, 760px);
+
+    .gauge {
+      // Dials are dark until the ignition phase ends, then light up.
+      opacity: 0.25;
+      filter: grayscale(1);
+      transition: opacity 450ms ease, filter 450ms ease;
+    }
+  }
+
+  &:not(&--ignition) &__dials .gauge {
+    opacity: 1;
+    filter: drop-shadow(0 0 18px rgb(240 120 50 / 0.25));
+  }
+
+  &__status {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    min-height: 24px;
+    @include label-caps($font-md);
+    color: var(--color-text-primary);
+    letter-spacing: 0.3em;
+  }
+
+  &__status-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--color-accent);
+    animation: ignition-blink 700ms steps(2) infinite;
+  }
+
+  &--live &__status-dot,
+  &--exit &__status-dot {
+    background: var(--color-success);
+    animation: none;
+  }
+
+  &__hint {
+    position: absolute;
+    bottom: $space-6;
+    color: var(--color-text-muted);
+    font-size: $font-sm;
+  }
+}
+
+@keyframes ignition-brand {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ignition-blink {
+  50% {
+    opacity: 0.2;
+  }
+}

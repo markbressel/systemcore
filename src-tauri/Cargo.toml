@@ -1,0 +1,28 @@
+[package]
+name = "systemcore"
+version = "0.1.0"
+description = "SystemCore - desktop system monitor"
+edition = "2021"
+
+[lib]
+name = "systemcore_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sysinfo = "0.40.4"
+ureq = "3"
+tauri-plugin-notification = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+
+# Windows platform adapters: PDH counters + commit charge, NVIDIA sensors (NVML, loaded at runtime), WMI.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Performance", "Win32_System_ProcessStatus"] }
+nvml-wrapper = "0.13"
+wmi = "0.18"

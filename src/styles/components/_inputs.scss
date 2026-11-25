@@ -1,0 +1,105 @@
+@use "../abstracts" as *;
+
+.search-field {
+  @include hover-transition(border-color);
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  width: 300px;
+  height: 36px;
+  padding: 0 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: $radius-md;
+
+  &:focus-within {
+    border-color: var(--color-accent);
+  }
+
+  &__icon {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    color: var(--color-text-muted);
+  }
+
+  &__input {
+    flex: 1;
+    min-width: 0;
+    background: none;
+    border: 0;
+    color: var(--color-text-primary);
+    font-size: 13px;
+
+    &:focus-visible {
+      outline: none;
+    }
+
+    &::placeholder {
+      color: var(--color-text-muted);
+    }
+  }
+
+  &__hint {
+    @include mono-num;
+    padding: 1px 5px;
+    border: 1px solid var(--color-border);
+    border-radius: $radius-sm;
+    color: var(--color-text-muted);
+    font-size: 10px;
+  }
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-2;
+  color: var(--color-text-secondary);
+  font-size: $font-sm;
+  cursor: pointer;
+
+  input {
+    accent-color: var(--color-accent);
+  }
+}
+
+// Segmented tabs (Performance resource switcher).
+.tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: $radius-md;
+
+  &__tab {
+    @include hover-transition(color, background);
+    display: inline-flex;
+    align-items: center;
+    gap: $space-2;
+    height: 32px;
+    padding: 0 14px;
+    border-radius: $radius-sm;
+    color: var(--color-text-secondary);
+    font-family: $font-family-display;
+    font-size: $font-base;
+    font-weight: $weight-semibold;
+    letter-spacing: 0.04em;
+
+    &:hover {
+      color: var(--color-text-primary);
+      background: var(--color-surface);
+    }
+
+    &--active,
+    &--active:hover {
+      color: var(--color-text-on-accent);
+      background: var(--color-accent);
+    }
+  }
+
+  &__icon {
+    width: 16px;
+    height: 16px;
+  }
+}

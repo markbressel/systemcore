@@ -1,0 +1,25 @@
+@use "../abstracts" as *;
+
+.u-mono {
+  @include mono-num;
+}
+
+.u-truncate {
+  @include truncate;
+}
+
+.u-muted {
+  color: var(--color-text-muted);
+}
+
+.u-break {
+  overflow-wrap: anywhere;
+}
+
+.u-download {
+  color: var(--color-chart-download);
+}
+
+.u-upload {
+  color: var(--color-chart-upload);
+}

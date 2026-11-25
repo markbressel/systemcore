@@ -1,0 +1,59 @@
+@use "../abstracts" as *;
+
+.topbar {
+  @include flex-between;
+  flex: none;
+  gap: $space-4;
+  height: $topbar-height;
+  padding: 0 $content-padding;
+  background: var(--color-bg-primary);
+  border-bottom: 1px solid var(--color-border-subtle);
+
+  &__breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    min-width: 0;
+    color: var(--color-text-muted);
+    font-size: 13px;
+  }
+
+  &__current {
+    color: var(--color-text-primary);
+    font-family: $font-family-display;
+    font-size: $font-md;
+    font-weight: $weight-semibold;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: $space-5;
+    color: var(--color-text-secondary);
+    font-size: $font-sm;
+  }
+
+  &__stat {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+
+    strong {
+      @include mono-num;
+      color: var(--color-text-primary);
+      font-weight: $weight-medium;
+    }
+
+    @include below($bp-compact) {
+      display: none;
+    }
+  }
+
+  &__icon {
+    width: 14px;
+    height: 14px;
+    color: var(--color-text-muted);
+  }
+}

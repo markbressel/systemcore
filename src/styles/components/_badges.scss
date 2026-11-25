@@ -1,0 +1,47 @@
+@use "sass:map";
+@use "../abstracts" as *;
+
+$tones: (
+  "success": var(--color-success),
+  "warning": var(--color-warning),
+  "danger": var(--color-danger),
+  "info": var(--color-info),
+  "accent": var(--color-accent),
+  "neutral": var(--color-text-muted),
+);
+
+// Status is always dot + text, never color alone (spec §2.2).
+.status-badge {
+  --tone: var(--color-text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px $space-2;
+  border: 1px solid var(--color-border);
+  border-radius: $radius-sm;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  font-size: $font-xs;
+  font-weight: $weight-medium;
+  white-space: nowrap;
+
+  &::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 1px;
+    background: var(--tone);
+  }
+
+  @each $name, $color in $tones {
+    &--#{$name} {
+      --tone: #{$color};
+    }
+  }
+
+  &--plain {
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+}

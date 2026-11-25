@@ -1,0 +1,162 @@
+@use "../abstracts" as *;
+
+.sidebar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-bg-secondary);
+  border-right: 1px solid var(--color-border-subtle);
+
+  // Triangle texture fading up from the bottom.
+  &::after {
+    @include triangle-pattern;
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 170px;
+    mask-image: linear-gradient(to top, rgb(0 0 0 / 0.9), transparent);
+    pointer-events: none;
+  }
+
+  &__brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $space-2;
+    padding: $space-6 $space-4 $space-5;
+  }
+
+  &__logo {
+    width: 76px;
+    height: 76px;
+    filter: drop-shadow(0 0 14px rgb(240 120 50 / 0.18));
+  }
+
+  &__wordmark {
+    font-family: $font-family-display;
+    font-size: $font-lg;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    color: var(--color-text-primary);
+
+    span {
+      color: var(--color-accent);
+    }
+  }
+
+  &__navigation {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    padding: $space-2 0;
+    overflow-y: auto;
+  }
+
+  &__section {
+    margin-bottom: $space-5;
+  }
+
+  &__section-title {
+    @include label-caps(10px);
+    color: var(--color-text-muted);
+    padding: 0 $space-6;
+    margin-bottom: $space-1;
+  }
+
+  &__item {
+    @include hover-transition(color, background);
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: $space-4;
+    width: 100%;
+    min-height: 54px;
+    padding: 0 $space-6;
+    color: var(--color-text-secondary);
+    font-family: $font-family-display;
+    font-size: $font-md;
+    font-weight: $weight-semibold;
+    letter-spacing: 0.03em;
+    text-align: left;
+
+    &:hover {
+      color: var(--color-text-primary);
+      background: var(--color-surface);
+    }
+
+    &--active,
+    &--active:hover {
+      color: var(--color-text-primary);
+      background: linear-gradient(90deg, var(--color-surface-active), var(--color-surface));
+
+      &::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: var(--color-accent);
+      }
+
+      .sidebar__icon {
+        color: var(--color-accent);
+      }
+    }
+  }
+
+  &__icon {
+    flex: none;
+    width: 20px;
+    height: 20px;
+  }
+
+  &__footer {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: $space-2;
+    padding: $space-4 $space-6 $space-5;
+  }
+
+  &__version {
+    @include mono-num;
+    color: var(--color-text-muted);
+    font-size: $font-xs;
+  }
+
+  // Collapsed rail: icons only, labels stay available as aria-label / title.
+  @include below($bp-compact) {
+    &__brand {
+      padding: $space-4 0;
+    }
+
+    &__logo {
+      width: 40px;
+      height: 40px;
+    }
+
+    &__wordmark,
+    &__section-title,
+    &__label,
+    &__version {
+      display: none;
+    }
+
+    &__item {
+      justify-content: center;
+      padding: 0;
+    }
+
+    &__footer {
+      align-items: center;
+      padding: $space-4 0;
+    }
+  }
+}

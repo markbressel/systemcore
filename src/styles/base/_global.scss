@@ -1,0 +1,49 @@
+@use "../abstracts" as *;
+
+// Runtime design tokens, generated from the central palette so no hex value is repeated.
+:root {
+  @each $name, $value in $palette {
+    --color-#{$name}: #{$value};
+  }
+
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: $font-family-base;
+  font-size: $font-base;
+  font-weight: $weight-regular;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+
+h1,
+h2,
+h3 {
+  font-family: $font-family-display;
+}
+
+h1 {
+  font-size: 30px;
+  font-weight: $weight-semibold;
+  letter-spacing: 0.01em;
+}
+
+h2 {
+  font-size: $font-lg;
+  font-weight: $weight-semibold;
+}
+
+h3 {
+  font-size: $font-md;
+  font-weight: $weight-semibold;
+}
+
+// Subtle, still-visible dark scrollbars (spec §18.1).
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-surface-active) transparent;
+}

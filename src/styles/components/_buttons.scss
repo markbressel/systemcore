@@ -1,0 +1,56 @@
+@use "../abstracts" as *;
+
+.button {
+  @include hover-transition(background, border-color, color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-2;
+  min-height: 32px;
+  padding: 0 $space-3;
+  border: 1px solid transparent;
+  border-radius: $radius-md;
+  font-size: 13px;
+  font-weight: $weight-semibold;
+
+  &__icon {
+    width: 14px;
+    height: 14px;
+  }
+
+  &--primary {
+    color: var(--color-text-on-accent);
+    background: var(--color-accent);
+
+    &:hover { background: var(--color-accent-hover); }
+    &:active { background: var(--color-accent-active); }
+  }
+
+  &--secondary {
+    color: var(--color-text-primary);
+    background: var(--color-surface);
+    border-color: var(--color-border);
+
+    &:hover { background: var(--color-surface-hover); }
+  }
+
+  &--danger {
+    color: var(--color-text-primary);
+    background: var(--color-danger);
+
+    &:hover { filter: brightness(1.1); }
+  }
+
+  &--ghost {
+    color: var(--color-text-secondary);
+
+    &:hover {
+      color: var(--color-accent);
+    }
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}

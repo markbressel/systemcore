@@ -1,0 +1,136 @@
+@use "../abstracts" as *;
+
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+  min-width: 0;
+
+  &__head {
+    @include flex-between;
+    flex-wrap: wrap;
+    gap: $space-2;
+  }
+
+  &__title {
+    @include label-caps;
+  }
+
+  &__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-4;
+    font-size: $font-sm;
+    color: var(--color-text-secondary);
+  }
+
+  &__legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    &::before {
+      content: "";
+      width: 10px;
+      height: 3px;
+      border-radius: 1px;
+      background: var(--series-color);
+    }
+  }
+
+  &__plot {
+    position: relative;
+    height: 140px;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: $radius-md;
+    overflow: hidden;
+    cursor: crosshair;
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &--sm &__plot { height: 56px; cursor: default; }
+  &--lg &__plot { height: 220px; }
+
+  &__grid {
+    stroke: var(--color-border-subtle);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+
+  &__axis {
+    @include mono-num;
+    position: absolute;
+    color: var(--color-text-muted);
+    font-size: 10px;
+    pointer-events: none;
+
+    &--max { top: 4px; left: 6px; }
+    &--start { bottom: 3px; left: 6px; }
+    &--end { bottom: 3px; right: 6px; }
+  }
+
+  &__cursor {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--color-text-muted);
+    pointer-events: none;
+  }
+
+  &__tooltip {
+    position: absolute;
+    top: $space-2;
+    z-index: 2;
+    min-width: 130px;
+    padding: $space-2 10px;
+    background: var(--color-surface-active);
+    border: 1px solid var(--color-border);
+    border-radius: $radius-md;
+    font-size: $font-xs;
+    pointer-events: none;
+    box-shadow: 0 6px 18px rgb(0 0 0 / 0.35);
+  }
+
+  &__tooltip-time {
+    color: var(--color-text-muted);
+    margin-bottom: $space-1;
+  }
+
+  &__tooltip-row {
+    @include flex-between;
+    gap: $space-3;
+
+    strong {
+      @include mono-num;
+      color: var(--color-text-primary);
+      font-weight: $weight-medium;
+    }
+  }
+
+  &__stale {
+    position: absolute;
+    top: $space-2;
+    right: $space-2;
+  }
+}
+
+// One sample step = 1 user unit of the chart's viewBox; slide in over the 1 s sampling interval.
+.chart__scroll {
+  animation: chart-scroll 1000ms linear both;
+}
+
+@keyframes chart-scroll {
+  from {
+    transform: translateX(1px);
+  }
+  to {
+    transform: none;
+  }
+}

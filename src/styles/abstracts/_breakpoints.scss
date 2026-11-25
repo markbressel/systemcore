@@ -1,0 +1,16 @@
+// Desktop window widths (spec §21).
+$bp-wide: 1600px;
+$bp-standard: 1300px;
+$bp-compact: 1100px;
+
+@mixin below($width) {
+  @media (max-width: ($width - 1px)) {
+    @content;
+  }
+}
+
+@mixin above($width) {
+  @media (min-width: $width) {
+    @content;
+  }
+}

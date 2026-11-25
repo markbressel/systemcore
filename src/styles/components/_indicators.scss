@@ -1,0 +1,94 @@
+@use "../abstracts" as *;
+
+// Segmented utilization bar. Color comes from the resource, switching to warning/danger at thresholds.
+.metric-indicator {
+  --indicator-color: var(--color-accent);
+  position: relative;
+  height: 8px;
+  background: var(--color-surface-active);
+  mask: repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 7px);
+
+  &__fill {
+    height: 100%;
+    background: var(--indicator-color);
+  }
+
+  &--thin {
+    height: 5px;
+    mask: none;
+    border-radius: $radius-pill;
+
+    .metric-indicator__fill {
+      border-radius: $radius-pill;
+    }
+  }
+
+  &--cpu { --indicator-color: var(--color-chart-cpu); }
+  &--memory { --indicator-color: var(--color-chart-memory); }
+  &--gpu { --indicator-color: var(--color-chart-gpu); }
+  &--storage { --indicator-color: var(--color-chart-storage); }
+  &--warning { --indicator-color: var(--color-warning); }
+  &--danger { --indicator-color: var(--color-danger); }
+}
+
+// Two-part distribution bar (e.g. memory used vs available).
+.distribution {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+
+  &__bar {
+    display: flex;
+    height: 14px;
+    overflow: hidden;
+    border-radius: $radius-sm;
+    background: var(--color-surface-active);
+  }
+
+  &__part {
+    height: 100%;
+
+    &--memory { background: var(--color-chart-memory); }
+    &--free { flex: 1; background: var(--color-surface-active); }
+  }
+
+  &__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-5;
+    color: var(--color-text-secondary);
+    font-size: $font-sm;
+  }
+}
+
+// Compact per-core grid.
+.core-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: $space-2;
+
+  &__cell {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: $space-2 10px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: $radius-md;
+  }
+
+  &__top {
+    @include flex-between;
+    font-size: $font-xs;
+  }
+
+  &__id {
+    @include mono-num;
+    color: var(--color-text-muted);
+  }
+
+  &__value {
+    @include mono-num;
+    font-weight: $weight-semibold;
+  }
+}
