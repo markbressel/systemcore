@@ -45,6 +45,25 @@ export function SettingsPage() {
         />
 
         <SettingRow
+          title="Size"
+          hint="Scale the overlay up for big screens or down to keep it out of the way."
+          control={
+            <div className="range-field">
+              <input
+                type="range"
+                min={75}
+                max={150}
+                step={5}
+                aria-label="Overlay size"
+                value={Math.round(o.scale * 100)}
+                onChange={(e) => updateOverlay({ scale: Number(e.target.value) / 100 })}
+              />
+              <output className="range-field__value">{Math.round(o.scale * 100)}%</output>
+            </div>
+          }
+        />
+
+        <SettingRow
           title="Fixed position"
           hint={o.freeMove ? "Turn off free positioning to pin the overlay to a corner." : "Corner of the screen the overlay sticks to."}
           disabled={o.freeMove}

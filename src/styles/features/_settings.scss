@@ -79,6 +79,25 @@
   }
 }
 
+.range-field {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+
+  input {
+    width: 180px;
+    accent-color: var(--color-accent);
+    cursor: pointer;
+  }
+
+  &__value {
+    @include mono-num;
+    min-width: 44px;
+    text-align: right;
+    color: var(--color-text-primary);
+  }
+}
+
 // A tiny "screen": click a corner to pin the overlay there.
 .corner-picker {
   position: relative;

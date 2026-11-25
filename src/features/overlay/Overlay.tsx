@@ -1,12 +1,17 @@
-import { currentMonitor, getCurrentWindow, PhysicalPosition } from "@tauri-apps/api/window";
-import { ArrowDown, ArrowUp, Lock, Move } from "lucide-react";
+import { currentMonitor, getCurrentWindow, LogicalSize, PhysicalPosition } from "@tauri-apps/api/window";
+import { AppWindow, ArrowDown, ArrowUp, Lock, Move, X } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import logo from "../../assets/logo.png";
 import { formatBytes, formatRate } from "../../lib/format";
+import { closeOverlay, showMain } from "../../lib/tauri";
 import { updateOverlay, useSettings } from "../../stores/settings";
 import { startTelemetry, useTelemetry } from "../../stores/telemetry";
 import type { Metric } from "../../types/telemetry";
 import { cornerPosition } from "./placement";
+
+// Card size at 100 %; the window is resized to this times the user's scale.
+const BASE_WIDTH = 270;
+const BASE_HEIGHT = 218;
 
 const v = (m: Metric<number> | undefined) => (m?.status === "available" ? m.value : null);
 const temp = (c: number | null) => (c == null ? null : <span className={c >= 85 ? "overlay__hot" : undefined}>{c.toFixed(0)}°C</span>);
@@ -43,10 +48,11 @@ export function Overlay() {
   const { overlay: o } = useSettings();
   const movable = o.freeMove && !o.locked;
 
-  // Place the window when the mode or corner changes (not on every saved drag position).
+  // Size and place the window when scale, mode or corner change (not on every saved drag position).
   useEffect(() => {
     const win = getCurrentWindow();
     (async () => {
+      await win.setSize(new LogicalSize(Math.round(BASE_WIDTH * o.scale), Math.round(BASE_HEIGHT * o.scale)));
       if (o.freeMove) {
         if (o.position) await win.setPosition(new PhysicalPosition(o.position.x, o.position.y));
         return;
@@ -57,7 +63,7 @@ export function Overlay() {
       const { x, y } = cornerPosition(o.corner, area, await win.outerSize(), Math.round(16 * m.scaleFactor));
       await win.setPosition(new PhysicalPosition(x, y));
     })().catch(() => {});
-  }, [o.freeMove, o.corner]);
+  }, [o.freeMove, o.corner, o.scale]);
 
   // Remember where the user dragged it.
   useEffect(() => {
@@ -84,6 +90,7 @@ export function Overlay() {
   return (
     <main
       className={`overlay${movable ? " overlay--movable" : ""}`}
+      style={{ zoom: o.scale }}
       onMouseDown={(e) => {
         if (movable && e.button === 0) void getCurrentWindow().startDragging();
       }}
@@ -95,6 +102,15 @@ export function Overlay() {
         </span>
         {movable ? <Move className="overlay__mode" aria-label="Drag to move" /> : o.freeMove ? <Lock className="overlay__mode" aria-label="Position locked" /> : null}
         <span className={`overlay__live${stale || !system ? " overlay__live--off" : ""}`} title={stale ? "Data stale" : "Live"} />
+        {/* Shown on hover; mousedown must not start a window drag. */}
+        <span className="overlay__actions" onMouseDown={(e) => e.stopPropagation()}>
+          <button type="button" className="overlay__action" title="Open SystemCore" aria-label="Open SystemCore" onClick={() => void showMain()}>
+            <AppWindow aria-hidden="true" />
+          </button>
+          <button type="button" className="overlay__action" title="Close overlay" aria-label="Close overlay" onClick={() => void closeOverlay()}>
+            <X aria-hidden="true" />
+          </button>
+        </span>
       </header>
 
       <Row label="CPU" tone="cpu" percent={v(cpu?.usagePercent)} details={[temp(v(cpu?.temperatureC)), ghz == null ? null : `${(ghz / 1000).toFixed(2)} GHz`]} />

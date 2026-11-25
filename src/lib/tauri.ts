@@ -10,6 +10,9 @@ export const cancelSpeedTest = () => invoke<void>("cancel_speed_test");
 export const killProcess = (pid: number, startTime: number) => invoke<void>("kill_process", { pid, startTime });
 /** Resolves to true when the overlay is now open. */
 export const toggleOverlay = () => invoke<boolean>("toggle_overlay");
+export const closeOverlay = () => invoke<void>("close_overlay");
+export const showMain = () => invoke<void>("show_main");
+export const onOverlayClosed = (cb: () => void) => listen("overlay:closed", cb);
 export const onSpeedProgress = (cb: (p: SpeedProgress) => void) => listen<SpeedProgress>("speedtest:progress", (e) => cb(e.payload));
 
 export interface TelemetryHandlers {

@@ -19,10 +19,14 @@ pub fn run() {
             collector::spawn(app.handle().clone(), shared);
             Ok(())
         })
-        // The overlay must not keep the app alive once the main window is gone.
+        // Closing the main window while the overlay is open only hides it, so the overlay keeps running.
+        // Without an overlay the close goes through and the app exits with its last window.
         .on_window_event(|w, e| {
-            if w.label() == "main" && matches!(e, tauri::WindowEvent::Destroyed) {
-                w.app_handle().exit(0);
+            if let tauri::WindowEvent::CloseRequested { api, .. } = e {
+                if w.label() == "main" && w.app_handle().get_webview_window("overlay").is_some() {
+                    api.prevent_close();
+                    let _ = w.hide();
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -31,7 +35,9 @@ pub fn run() {
             commands::start_speed_test,
             commands::cancel_speed_test,
             commands::kill_process,
-            commands::toggle_overlay
+            commands::toggle_overlay,
+            commands::close_overlay,
+            commands::show_main
         ])
         .run(tauri::generate_context!())
         .expect("error while running SystemCore");

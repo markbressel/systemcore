@@ -75,3 +75,27 @@ pub async fn toggle_overlay(app: tauri::AppHandle) -> Result<bool, String> {
         .map_err(|e| e.to_string())?;
     Ok(true)
 }
+
+/// The overlay's own close button. If the main window is hidden, nothing would be left on screen, so quit.
+#[tauri::command]
+pub async fn close_overlay(app: tauri::AppHandle) -> Result<(), String> {
+    let main_visible = app.get_webview_window("main").is_some_and(|m| m.is_visible().unwrap_or(false));
+    if !main_visible {
+        app.exit(0);
+        return Ok(());
+    }
+    if let Some(w) = app.get_webview_window("overlay") {
+        w.close().map_err(|e| e.to_string())?;
+    }
+    let _ = app.emit("overlay:closed", ());
+    Ok(())
+}
+
+/// Brings the main window back (it is hidden, not closed, while the overlay runs).
+#[tauri::command]
+pub fn show_main(app: tauri::AppHandle) -> Result<(), String> {
+    let main = app.get_webview_window("main").ok_or("Main window is missing.")?;
+    let _ = main.unminimize();
+    main.show().map_err(|e| e.to_string())?;
+    main.set_focus().map_err(|e| e.to_string())
+}

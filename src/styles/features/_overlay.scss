@@ -12,9 +12,11 @@ html:has(.overlay) body {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  height: 100vh;
+  // Fixed card size; the component zooms it and resizes the window to match.
+  width: 270px;
+  height: 218px;
   padding: 10px 12px;
-  background: rgb(11 13 16 / 97%);
+  background: var(--color-bg-primary);
   border: 1px solid var(--color-border);
   border-radius: $radius-xl;
   user-select: none;
@@ -49,6 +51,46 @@ html:has(.overlay) body {
     b {
       color: var(--color-accent);
       font-weight: inherit;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    gap: 2px;
+    width: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  &:hover &__actions,
+  &__actions:focus-within {
+    width: auto;
+    opacity: 1;
+  }
+
+  &__action {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: $radius-sm;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+
+    svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    &:hover {
+      color: var(--color-text-primary);
+      background: var(--color-surface-hover);
+    }
+
+    &:last-child:hover {
+      color: var(--color-text-primary);
+      background: var(--color-danger);
     }
   }
 

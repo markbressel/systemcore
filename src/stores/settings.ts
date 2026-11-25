@@ -1,7 +1,7 @@
 // App settings, persisted in localStorage. The main window and the overlay share one origin,
 // so the browser's `storage` event carries every change to the other window.
 import { useSyncExternalStore } from "react";
-import { toggleOverlay } from "../lib/tauri";
+import { onOverlayClosed, toggleOverlay } from "../lib/tauri";
 import type { Corner } from "../features/overlay/placement";
 
 export interface OverlaySettings {
@@ -12,6 +12,8 @@ export interface OverlaySettings {
   locked: boolean;
   /** Last dragged position, physical pixels. */
   position: { x: number; y: number } | null;
+  /** Size multiplier, 0.75–1.5. */
+  scale: number;
 }
 
 export interface Settings {
@@ -19,7 +21,7 @@ export interface Settings {
 }
 
 const KEY = "systemcore.settings";
-const DEFAULTS: Settings = { overlay: { corner: "top-right", freeMove: false, locked: false, position: null } };
+const DEFAULTS: Settings = { overlay: { corner: "top-right", freeMove: false, locked: false, position: null, scale: 1 } };
 
 function load(): Settings {
   try {
@@ -60,6 +62,12 @@ export const useSettings = () => useSyncExternalStore(subscribe, () => settings)
 
 /** Overlay window open/closed, as seen from the main window (only it opens or closes the overlay). */
 export const useOverlayOpen = () => useSyncExternalStore(subscribe, () => overlayOpen);
+// The overlay can close itself (its own X button); keep the main window's toggle in sync.
+void onOverlayClosed(() => {
+  overlayOpen = false;
+  emit();
+}).catch(() => {});
+
 export async function toggleOverlayWindow() {
   overlayOpen = await toggleOverlay();
   emit();
