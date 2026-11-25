@@ -1,3 +1,5 @@
+import { getVersion } from "@tauri-apps/api/app";
+import { useEffect, useState } from "react";
 import logo from "../../assets/logo.png";
 import { NAV_SECTIONS, type PageId } from "./navigation";
 import { SystemStatus } from "./SystemStatus";
@@ -8,6 +10,11 @@ interface Props {
 }
 
 export function Sidebar({ active, onSelect }: Props) {
+  const [version, setVersion] = useState<string | null>(null);
+  useEffect(() => {
+    getVersion().then(setVersion).catch(() => {});
+  }, []);
+
   return (
     <aside className="sidebar">
       <div className="sidebar__brand">
@@ -42,7 +49,7 @@ export function Sidebar({ active, onSelect }: Props) {
       </nav>
       <div className="sidebar__footer">
         <SystemStatus />
-        <span className="sidebar__version">v0.1.0 · local only</span>
+        <span className="sidebar__version">{version ? `v${version} · ` : ""}local only</span>
       </div>
     </aside>
   );
