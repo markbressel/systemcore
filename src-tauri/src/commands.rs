@@ -62,7 +62,7 @@ pub async fn toggle_overlay(app: tauri::AppHandle) -> Result<bool, String> {
     }
     tauri::WebviewWindowBuilder::new(&app, "overlay", tauri::WebviewUrl::default())
         .title("SystemCore overlay")
-        .inner_size(270.0, 200.0)
+        .inner_size(270.0, 218.0)
         .position(16.0, 16.0)
         .transparent(true)
         .shadow(false)
