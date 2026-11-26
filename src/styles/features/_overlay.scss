@@ -23,7 +23,9 @@ html:has(.overlay) body {
   cursor: default;
 
   // One slim line: logo, live dot, a chip per reading.
+  // Every field has a fixed width so live values never change the window size.
   &--compact {
+    position: relative;
     flex-direction: row;
     align-items: center;
     gap: 10px;
@@ -42,9 +44,13 @@ html:has(.overlay) body {
     font-size: 12px;
 
     .overlay__value {
-      min-width: 32px;
-      text-align: left;
+      min-width: 4ch;
+      text-align: right;
       font-size: 13px;
+    }
+
+    .overlay__extra {
+      min-width: 4ch;
     }
 
     &--net {
@@ -61,6 +67,27 @@ html:has(.overlay) body {
       svg:first-child { color: var(--color-chart-download); }
       svg:last-of-type { color: var(--color-chart-upload); }
     }
+  }
+
+  &__rate {
+    display: inline-block;
+    min-width: 10ch;
+  }
+
+  // Compact: the hover buttons float over the right end instead of widening the bar.
+  &--compact &__actions {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    width: auto;
+    padding-left: 10px;
+    background: linear-gradient(90deg, transparent, var(--color-bg-primary) 10px);
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+
+  &--compact:hover &__actions {
+    pointer-events: auto;
   }
 
   &__extra {

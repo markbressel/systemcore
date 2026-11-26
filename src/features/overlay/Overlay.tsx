@@ -64,10 +64,11 @@ export function Overlay() {
     if (!el) return;
     const win = getCurrentWindow();
     let busy = Promise.resolve();
-    const place = () =>
+    const place = (move: boolean) =>
       (busy = busy.then(async () => {
         const r = el.getBoundingClientRect();
         await win.setSize(new LogicalSize(Math.ceil(r.width), Math.ceil(r.height)));
+        if (!move) return;
         if (o.freeMove) {
           if (o.position) await win.setPosition(new PhysicalPosition(o.position.x, o.position.y));
           return;
@@ -78,8 +79,10 @@ export function Overlay() {
         const { x, y } = cornerPosition(o.corner, area, await win.outerSize(), Math.round(16 * m.scaleFactor));
         await win.setPosition(new PhysicalPosition(x, y));
       }).catch(() => {}));
-    void place();
-    const ro = new ResizeObserver(() => void place());
+    void place(true);
+    // A content-size change only resizes in free mode: this effect's saved position may be older than the
+    // user's last drag. Corners still re-place so a right/bottom edge stays anchored.
+    const ro = new ResizeObserver(() => void place(!o.freeMove));
     ro.observe(el);
     return () => ro.disconnect();
     // o.position is deliberately not a dependency: re-placing on every saved drag would fight the drag.
@@ -141,7 +144,10 @@ export function Overlay() {
           {rows.ram && <Chip label="RAM" tone="memory" percent={v(mem?.usagePercent)} />}
           {rows.net && (
             <span className="overlay__chip overlay__chip--net">
-              <ArrowDown aria-hidden="true" /> {rateText(rx)} <ArrowUp aria-hidden="true" /> {rateText(tx)}
+              <ArrowDown aria-hidden="true" />
+              <span className="overlay__rate">{rateText(rx)}</span>
+              <ArrowUp aria-hidden="true" />
+              <span className="overlay__rate">{rateText(tx)}</span>
             </span>
           )}
           {modeIcon}
