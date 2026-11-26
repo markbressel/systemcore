@@ -31,14 +31,16 @@ No administrator rights, no drivers, no background services.
 |---|---|
 | **Overview** | Cockpit dashboard: CPU and GPU dials, memory usage, disk space, temperatures, clocks and fan speed at a glance. |
 | **Performance** | Per-resource detail for CPU, memory and GPU with a 60-second live history chart. |
-| **Processes** | Searchable, sortable process list (`Ctrl+F`), process details and **End process** with confirmation. |
-| **Hardware** | Processor, motherboard, memory modules and graphics card inventory. |
+| **History** | Load, temperatures, memory, network, ping and FPS over the last 1, 6 or 24 hours. |
+| **Processes** | Searchable, sortable process list (`Ctrl+F`), process details, priority, open file location, search online and **End process** with confirmation. |
+| **Hardware** | Processor, motherboard, memory modules and graphics card inventory. **Copy specs** or **Save report** for forums and support. |
 | **Storage** | Every volume with capacity, live read/write speed and drive health. Windows notification if a drive's health gets worse. |
 | **Network** | Total and per-adapter download/upload rates with history. |
 | **Speed Test** | Ping, jitter, download and upload against Cloudflare's global network. Runs only when you press start. |
-| **Overlay** | Small always-on-top window with CPU, GPU, RAM and network for gaming. `Ctrl+Shift+O` shows or hides it from anywhere. |
+| **Startup Apps** | Programs that start with Windows, with an on/off switch that works like Task Manager's. |
+| **Overlay** | Always-on-top gaming overlay: FPS, frame time and 1% low, CPU, GPU, RAM, network and ping. `Ctrl+Shift+O` shows or hides it from anywhere, and it can open by itself when a game goes fullscreen. |
 | **Settings** | Overlay readings, size, compact layout and placement; start with Windows; keep running in the tray. |
-| **Alerts** | Optional Windows notification when CPU or GPU temperature or RAM usage reaches your limit. |
+| **Alerts** | Optional Windows notifications when CPU or GPU temperature or RAM usage reaches your limit, or when one program keeps using a lot of CPU or memory. |
 | **Tray** | SystemCore keeps running in the notification area: open it, toggle the overlay or quit from the tray icon. |
 | **Updates** | An **Update** button appears when a new version is out. One click downloads, installs and restarts. |
 
@@ -61,7 +63,9 @@ No administrator rights, no drivers, no background services.
 
 Turn it on from the top bar (**Overlay**), the tray icon, **Settings**, or with `Ctrl+Shift+O`.
 
-- CPU load and clock, GPU load, temperature, VRAM and power draw, RAM usage and live network rates.
+- FPS, frame time and 1% low of the app in front (needs administrator, see below).
+- CPU load and clock, GPU load, temperature, VRAM and power draw, RAM usage, live network rates and ping.
+- **Show overlay in games**: opens by itself when an app goes fullscreen and closes when you leave.
 - **Readings and size**: pick CPU, GPU, RAM and network, scale it 75–150 %, or switch to a single-line **compact** layout.
 - **Fixed position**: pin it to any corner of the screen. It respects the taskbar.
 - **Free positioning**: drag it anywhere, then tick **Locked** so it stays put, even after a restart.
@@ -83,7 +87,10 @@ Every update is signed. The app refuses any installer that was not signed with t
 Everything is measured and shown locally. SystemCore has no account, no analytics and sends no telemetry. It makes only two kinds of network requests:
 
 - the **Speed Test**, and only when you start it (Cloudflare);
+- the **ping** reading: a TCP handshake to `1.1.1.1:443` every 2 seconds, without sending any data;
 - the **update check** (GitHub Releases).
+
+History stays in memory on this PC and is gone when SystemCore quits. The spec report leaves out the computer name and MAC addresses.
 
 Process command lines and environment variables are never read.
 
@@ -131,7 +138,7 @@ React pages (src/features/*)
 
 ### Data sources
 
-All sources work without administrator rights.
+All sources work without administrator rights, except FPS.
 
 | Data | Source |
 |---|---|
@@ -142,11 +149,15 @@ All sources work without administrator rights.
 | Drive health and media type | WMI Storage Management (`MSFT_PhysicalDisk`) |
 | RAM modules | WMI `Win32_PhysicalMemory` |
 | CPU temperature | LibreHardwareMonitor's WMI namespace, while it is running |
+| FPS, frame time, 1% low | ETW present events (DXGI, D3D9, DxgKrnl), like PresentMon. Needs administrator |
+| Ping | TCP connect time to Cloudflare (`1.1.1.1:443`) |
+| Startup apps | `Run` registry keys, Startup folders and Task Manager's `StartupApproved` flags |
 
 ### Known limitations
 
 - **CPU temperature** needs [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) running. Windows exposes no CPU die temperature to normal apps on most desktops, and reading it directly needs a kernel driver, which SystemCore deliberately does not install.
 - **GPU temperature, clocks, power and fan** are NVIDIA-only for now.
-- **FPS** is not shown in the overlay. Measuring another program's frame rate needs Windows event tracing with administrator rights.
+- **FPS** needs SystemCore to run as administrator (**Settings → Gaming → Restart as administrator**): Windows only shares other programs' frame events with elevated apps. It counts the frames the game hands to Windows, so it matches PresentMon-style tools, not the in-game counter of every engine.
+- **Exclusive fullscreen** games draw over every window, including the overlay. Use borderless or windowed mode.
 - **Process memory** is the working set. Task Manager's default column is the private working set, so the numbers differ.
 - Some older drives report no media type ("Unspecified by drive").

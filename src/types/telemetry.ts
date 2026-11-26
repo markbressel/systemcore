@@ -70,6 +70,18 @@ export interface NetworkSnapshot {
   rxBytesPerSec: Metric<number>;
   txBytesPerSec: Metric<number>;
   adapters: AdapterSnapshot[];
+  /** Round trip to a public server (TCP handshake). */
+  latencyMs: Metric<number>;
+}
+
+/** The foreground app (normally the game) and its frame rate. */
+export interface GameSnapshot {
+  process: string | null;
+  pid: number | null;
+  fullscreen: boolean;
+  fps: Metric<number>;
+  frameTimeMs: Metric<number>;
+  low1Fps: Metric<number>;
 }
 
 export interface SystemSnapshot {
@@ -79,6 +91,7 @@ export interface SystemSnapshot {
   network: NetworkSnapshot;
   uptimeSecs: Metric<number>;
   processCount: Metric<number>;
+  game: GameSnapshot;
   sampledAt: number;
 }
 
@@ -178,3 +191,30 @@ export interface SpeedProgress {
   /** Cloudflare data center code, e.g. "BUD" */
   server: string | null;
 }
+
+/** Mirror of src-tauri/src/history.rs `Point`. */
+export interface HistoryPoint {
+  /** Unix epoch ms */
+  t: number;
+  cpu: number | null;
+  cpuTemp: number | null;
+  gpu: number | null;
+  gpuTemp: number | null;
+  ram: number | null;
+  rx: number | null;
+  tx: number | null;
+  ping: number | null;
+  fps: number | null;
+}
+
+/** Mirror of src-tauri/src/platform/windows/startup.rs `StartupApp`. */
+export interface StartupApp {
+  id: string;
+  name: string;
+  command: string;
+  location: string;
+  enabled: boolean;
+  needsAdmin: boolean;
+}
+
+export type Priority = "idle" | "below_normal" | "normal" | "above_normal" | "high";

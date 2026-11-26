@@ -3,7 +3,8 @@
 
 use crate::domain::*;
 use crate::platform::windows as win;
-use crate::prefs::{Alerts, SharedPrefs};
+use crate::history::{self, SharedHistory};
+use crate::prefs::{Alerts, HogWatch, ProcSample, SharedPrefs};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -11,7 +12,7 @@ use sysinfo::{
     Components, CpuRefreshKind, Disks, Gpus, MemoryRefreshKind, Networks, ProcessRefreshKind,
     ProcessesToUpdate, System, UpdateKind,
 };
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_notification::NotificationExt;
 
 pub type Shared = Arc<Mutex<Latest>>;
@@ -38,6 +39,27 @@ const SRC_COMMIT: &str = "GetPerformanceInfo";
 
 const NOTE_CPU_TEMP: &str = "Needs LibreHardwareMonitor";
 const NOTE_NVIDIA_ONLY: &str = "NVIDIA GPUs only for now";
+const NOTE_FPS_ADMIN: &str = "Run SystemCore as administrator to measure FPS";
+const NOTE_NO_FRAMES: &str = "This app is not rendering frames";
+const SRC_ETW: &str = "ETW present events";
+const SRC_PING: &str = "TCP connect to 1.1.1.1:443";
+
+/// A frame metric with no value: why it is missing depends on whether ETW could be started at all.
+fn idle_fps(measuring: bool, unit: &'static str) -> Metric<f32> {
+    if measuring {
+        Metric::missing(Status::TemporarilyUnavailable, unit, SRC_ETW).with_note(NOTE_NO_FRAMES)
+    } else {
+        Metric::missing(Status::Unsupported, unit, SRC_ETW).with_note(NOTE_FPS_ADMIN)
+    }
+}
+
+/// Handshake time to Cloudflare's anycast address: works without admin rights, unlike raw ICMP sockets.
+fn ping() -> Option<f32> {
+    let addr = std::net::SocketAddr::from(([1, 1, 1, 1], 443));
+    let t = Instant::now();
+    std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(1500)).ok()?;
+    Some(t.elapsed().as_secs_f32() * 1000.0)
+}
 
 /// Bytes per second from two cumulative counters.
 /// `None` if the counter went backwards (adapter reset/reconnect) so no fake spike is produced.
@@ -100,11 +122,16 @@ struct Collector {
     cpu_samples: u64,
     process_samples: u64,
     peak_mhz: u64,
+    fps: Option<win::fps::Fps>,
+    latency: Arc<Mutex<Option<f32>>>,
+    game: GameSnapshot,
+    hogs: HogWatch,
 }
 
 impl Collector {
-    fn new() -> Result<Self, String> {
+    fn new(latency: Arc<Mutex<Option<f32>>>) -> Result<Self, String> {
         let sys = System::new().map_err(|e| format!("Cannot initialise system provider: {e:?}"))?;
+        let fps = win::fps::Fps::start().ok();
         Ok(Self {
             sys,
             networks: Networks::new_with_refreshed_list().ok(),
@@ -124,6 +151,17 @@ impl Collector {
             cpu_samples: 0,
             process_samples: 0,
             peak_mhz: 0,
+            game: GameSnapshot {
+                process: None,
+                pid: None,
+                fullscreen: false,
+                fps: idle_fps(fps.is_some(), "fps"),
+                frame_time_ms: idle_fps(fps.is_some(), "ms"),
+                low1_fps: idle_fps(fps.is_some(), "fps"),
+            },
+            fps,
+            latency,
+            hogs: HogWatch::default(),
         })
     }
 
@@ -257,6 +295,7 @@ impl Collector {
                 rx_bytes_per_sec: Metric::missing(Status::Unsupported, "B/s", SRC_SYS),
                 tx_bytes_per_sec: Metric::missing(Status::Unsupported, "B/s", SRC_SYS),
                 adapters: vec![],
+                latency_ms: self.latency_metric(now),
             };
         };
         nets.refresh(true);
@@ -282,6 +321,7 @@ impl Collector {
         let rx_total = sum(|r| &r.0);
         let tx_total = sum(|r| &r.1);
         NetworkSnapshot {
+            latency_ms: self.latency_metric(now),
             rx_bytes_per_sec: rx_total,
             tx_bytes_per_sec: tx_total,
             adapters: list
@@ -298,6 +338,33 @@ impl Collector {
                 })
                 .collect(),
         }
+    }
+
+    fn latency_metric(&self, now: u64) -> Metric<f32> {
+        let v = self.latency.lock().ok().and_then(|l| *l);
+        Metric::from_option(v, "ms", SRC_PING, now, Status::TemporarilyUnavailable).with_note("No internet connection")
+    }
+
+    /// Foreground app and its frame rate. Our own windows (e.g. clicking the overlay) keep the last result.
+    fn refresh_game(&mut self, now: u64) {
+        let Some(fg) = win::system::foreground() else { return };
+        if fg.pid == std::process::id() {
+            return;
+        }
+        let stats = self.fps.as_ref().and_then(|f| f.stats(fg.pid));
+        let measuring = self.fps.is_some();
+        let metric = |pick: fn(&win::fps::FrameStats) -> f32, unit| match &stats {
+            Some(s) => Metric::ok(pick(s), unit, SRC_ETW, now),
+            None => idle_fps(measuring, unit),
+        };
+        self.game = GameSnapshot {
+            process: self.sys.process(sysinfo::Pid::from_u32(fg.pid)).map(|p| p.name().to_string_lossy().into_owned()),
+            pid: Some(fg.pid),
+            fullscreen: fg.fullscreen,
+            fps: metric(|s| s.fps, "fps"),
+            frame_time_ms: metric(|s| s.frame_time_ms, "ms"),
+            low1_fps: metric(|s| s.low1_fps, "fps"),
+        };
     }
 
     fn processes(&mut self, now: u64) -> ProcessesSnapshot {
@@ -394,11 +461,20 @@ fn store(shared: &Shared, f: impl FnOnce(&mut Latest)) {
     }
 }
 
-pub fn spawn(app: AppHandle, shared: Shared, prefs: SharedPrefs) {
+pub fn spawn(app: AppHandle, shared: Shared, prefs: SharedPrefs, hist: SharedHistory) {
     std::thread::Builder::new()
         .name("telemetry-collector".into())
         .spawn(move || {
-            let mut c = match Collector::new() {
+            let latency: Arc<Mutex<Option<f32>>> = Arc::default();
+            let l = latency.clone();
+            let _ = std::thread::Builder::new().name("ping".into()).spawn(move || loop {
+                let v = ping();
+                if let Ok(mut x) = l.lock() {
+                    *x = v;
+                }
+                std::thread::sleep(Duration::from_secs(2));
+            });
+            let mut c = match Collector::new(latency) {
                 Ok(c) => c,
                 Err(e) => {
                     store(&shared, |l| l.error = Some(e.clone()));
@@ -407,6 +483,8 @@ pub fn spawn(app: AppHandle, shared: Shared, prefs: SharedPrefs) {
                 }
             };
             let mut alerts = Alerts::default();
+            // Set when fullscreen detection opened the overlay, so leaving fullscreen may close it again.
+            let mut auto_opened = false;
             loop {
                 let started = Instant::now();
                 let now = now_ms();
@@ -421,8 +499,19 @@ pub fn spawn(app: AppHandle, shared: Shared, prefs: SharedPrefs) {
                     }
                     c.disk_health = next;
                 }
+                let p_now = prefs.lock().map(|p| p.clone()).unwrap_or_default();
                 if c.due(PROCESS_EVERY) {
                     let p = c.processes(now);
+                    let own = std::process::id();
+                    let samples: Vec<ProcSample> = p
+                        .processes
+                        .iter()
+                        .filter(|x| x.pid > 4 && x.pid != own)
+                        .map(|x| ProcSample { pid: x.pid, start_time: x.start_time, name: &x.name, cpu_percent: x.cpu_percent, memory_bytes: x.memory_bytes })
+                        .collect();
+                    for body in c.hogs.update(c.tick, &samples, &p_now.alerts) {
+                        let _ = app.notification().builder().title("SystemCore: heavy program").body(body).show();
+                    }
                     store(&shared, |l| l.processes = Some(p.clone()));
                     let _ = app.emit("telemetry:processes", p);
                 }
@@ -430,6 +519,18 @@ pub fn spawn(app: AppHandle, shared: Shared, prefs: SharedPrefs) {
                     if let Some(d) = c.disks(now) {
                         store(&shared, |l| l.disks = Some(d.clone()));
                         let _ = app.emit("telemetry:disks", d);
+                    }
+                }
+
+                let was_fullscreen = c.game.fullscreen;
+                c.refresh_game(now);
+                if p_now.auto_overlay && c.game.fullscreen != was_fullscreen {
+                    let open = app.get_webview_window("overlay").is_some();
+                    if c.game.fullscreen && !open {
+                        auto_opened = crate::commands::overlay(&app, Some(true)).is_ok();
+                    } else if !c.game.fullscreen && auto_opened {
+                        let _ = crate::commands::overlay(&app, Some(false));
+                        auto_opened = false;
                     }
                 }
 
@@ -442,12 +543,26 @@ pub fn spawn(app: AppHandle, shared: Shared, prefs: SharedPrefs) {
                     network,
                     uptime_secs: Metric::from_option(System::uptime().ok(), "s", SRC_SYS, now, Status::Error),
                     process_count: c.process_count.clone(),
+                    game: c.game.clone(),
                     sampled_at: now,
                 };
-                if let Some(a) = prefs.lock().ok().map(|p| p.alerts.clone()) {
-                    for body in alerts.check(&a, &snap) {
-                        let _ = app.notification().builder().title("SystemCore alert").body(body).show();
-                    }
+                for body in alerts.check(&p_now.alerts, &snap) {
+                    let _ = app.notification().builder().title("SystemCore alert").body(body).show();
+                }
+                if c.due(history::EVERY_TICKS) {
+                    let gpu = snap.gpus.value.as_ref().and_then(|g| g.first());
+                    history::push(&hist, history::Point {
+                        t: now,
+                        cpu: snap.cpu.usage_percent.value,
+                        cpu_temp: snap.cpu.temperature_c.value,
+                        gpu: gpu.and_then(|g| g.usage_percent.value),
+                        gpu_temp: gpu.and_then(|g| g.temperature_c.value),
+                        ram: snap.memory.usage_percent.value,
+                        rx: snap.network.rx_bytes_per_sec.value.map(|v| v as f32),
+                        tx: snap.network.tx_bytes_per_sec.value.map(|v| v as f32),
+                        ping: snap.network.latency_ms.value,
+                        fps: snap.game.fps.value,
+                    });
                 }
                 store(&shared, |l| l.system = Some(snap.clone()));
                 // Events are latest-value only: the UI replaces state, so no backlog can build up.

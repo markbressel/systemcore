@@ -2,6 +2,7 @@ mod collector;
 mod commands;
 mod domain;
 mod hardware;
+mod history;
 mod platform;
 mod prefs;
 mod speedtest;
@@ -62,6 +63,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec![AUTOSTART_ARG])))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -74,11 +76,13 @@ pub fn run() {
         )
         .manage(collector::Shared::default())
         .manage(prefs::SharedPrefs::default())
+        .manage(history::SharedHistory::default())
         .manage(speedtest::SpeedTestState::default())
         .setup(move |app| {
             let shared = app.state::<collector::Shared>().inner().clone();
             let prefs = app.state::<prefs::SharedPrefs>().inner().clone();
-            collector::spawn(app.handle().clone(), shared, prefs);
+            let hist = app.state::<history::SharedHistory>().inner().clone();
+            collector::spawn(app.handle().clone(), shared, prefs, hist);
             build_tray(app)?;
             // Another app may own the hotkey; the overlay stays reachable from the tray and the UI.
             if let Err(e) = app.global_shortcut().register(overlay_hotkey) {
@@ -111,7 +115,17 @@ pub fn run() {
             commands::set_overlay,
             commands::show_main,
             commands::launched_at_login,
-            commands::set_prefs
+            commands::set_prefs,
+            commands::open_process_location,
+            commands::get_process_priority,
+            commands::set_process_priority,
+            commands::search_process,
+            commands::list_startup_apps,
+            commands::set_startup_enabled,
+            commands::get_history,
+            commands::is_elevated,
+            commands::restart_as_admin,
+            commands::save_report
         ])
         .run(tauri::generate_context!())
         .expect("error while running SystemCore");

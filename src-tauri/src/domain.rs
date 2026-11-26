@@ -117,6 +117,22 @@ pub struct NetworkSnapshot {
     pub rx_bytes_per_sec: Metric<f64>,
     pub tx_bytes_per_sec: Metric<f64>,
     pub adapters: Vec<AdapterSnapshot>,
+    /// Round trip to a public server (TCP handshake time).
+    pub latency_ms: Metric<f32>,
+}
+
+/// The app in the foreground (normally the game) and its frame rate.
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GameSnapshot {
+    pub process: Option<String>,
+    pub pid: Option<u32>,
+    /// Foreground window covers its whole monitor.
+    pub fullscreen: bool,
+    pub fps: Metric<f32>,
+    pub frame_time_ms: Metric<f32>,
+    /// Average FPS of the slowest 1 % of frames over the last ~10 s.
+    pub low1_fps: Metric<f32>,
 }
 
 #[derive(Serialize, Clone)]
@@ -128,6 +144,7 @@ pub struct SystemSnapshot {
     pub network: NetworkSnapshot,
     pub uptime_secs: Metric<u64>,
     pub process_count: Metric<usize>,
+    pub game: GameSnapshot,
     pub sampled_at: u64,
 }
 

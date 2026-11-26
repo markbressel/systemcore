@@ -1,5 +1,5 @@
-import { ChevronDown, ChevronUp, Info, Search, XCircle } from "lucide-react";
-import { killProcess } from "../../lib/tauri";
+import { ChevronDown, ChevronUp, FolderOpen, Globe, Info, Search, XCircle } from "lucide-react";
+import { getProcessPriority, killProcess, openProcessLocation, searchProcess, setProcessPriority } from "../../lib/tauri";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EmptyState, LoadingState } from "../../components/feedback/States";
 import { StatusBadge } from "../../components/feedback/StatusBadge";
@@ -7,7 +7,66 @@ import { PageContainer } from "../../components/layout/PageContainer";
 import { StatList } from "../../components/metrics/StatList";
 import { formatBytes, formatPercent } from "../../lib/format";
 import { useTelemetry } from "../../stores/telemetry";
-import type { ProcessInfo } from "../../types/telemetry";
+import type { Priority, ProcessInfo } from "../../types/telemetry";
+
+const PRIORITIES: { id: Priority; label: string }[] = [
+  { id: "high", label: "High" },
+  { id: "above_normal", label: "Above normal" },
+  { id: "normal", label: "Normal" },
+  { id: "below_normal", label: "Below normal" },
+  { id: "idle", label: "Low" },
+];
+
+/** Priority picker plus "open location" / "search online" for the selected process. */
+function ProcessActions({ p }: { p: ProcessInfo }) {
+  const [priority, setPriority] = useState<Priority | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    setError(null);
+    setPriority(null);
+    getProcessPriority(p.pid, p.startTime).then(setPriority).catch(() => setPriority(null));
+  }, [p.pid, p.startTime]);
+
+  const run = (f: () => Promise<unknown>) => {
+    setError(null);
+    f().catch((e) => setError(String(e)));
+  };
+  const change = (next: Priority) =>
+    run(async () => {
+      await setProcessPriority(p.pid, p.startTime, next);
+      setPriority(await getProcessPriority(p.pid, p.startTime));
+    });
+
+  return (
+    <div className="processes__actions">
+      <label className="processes__priority">
+        <span>Priority</span>
+        <select
+          value={priority ?? ""}
+          disabled={priority == null}
+          title={priority == null ? "Windows does not allow reading this process's priority" : undefined}
+          onChange={(e) => change(e.target.value as Priority)}
+        >
+          {priority == null && <option value="">Unavailable</option>}
+          {PRIORITIES.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="processes__buttons">
+        <button type="button" className="button button--secondary" disabled={!p.exe} onClick={() => run(() => openProcessLocation(p.pid, p.startTime))}>
+          <FolderOpen className="button__icon" aria-hidden="true" /> Open file location
+        </button>
+        <button type="button" className="button button--secondary" onClick={() => run(() => searchProcess(p.pid, p.startTime))}>
+          <Globe className="button__icon" aria-hidden="true" /> Search online
+        </button>
+      </div>
+      {error && <p className="processes__error" role="alert">{error}</p>}
+    </div>
+  );
+}
 
 type SortKey = "name" | "pid" | "cpuPercent" | "memoryBytes" | "status";
 const COLUMNS: { key: SortKey; label: string; numeric?: boolean; className?: string }[] = [
@@ -187,6 +246,7 @@ export function ProcessesPage() {
                   ["Executable", current.exe ? <span className="processes__path">{current.exe}</span> : <span className="metric-value metric-value--missing">Access denied or unavailable</span>],
                 ]}
               />
+              <ProcessActions key={current.pid} p={current} />
               <button type="button" className="button button--danger processes__end" onClick={() => askKill(current)}>
                 <XCircle className="button__icon" aria-hidden="true" /> End process
               </button>

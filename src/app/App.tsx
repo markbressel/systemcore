@@ -3,12 +3,14 @@ import { IgnitionSplash } from "../features/splash/IgnitionSplash";
 import { AppShell } from "../components/layout/AppShell";
 import type { PageId } from "../components/layout/navigation";
 import { HardwarePage } from "../features/hardware/HardwarePage";
+import { HistoryPage } from "../features/history/HistoryPage";
 import { NetworkPage } from "../features/network/NetworkPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
 import { PerformancePage, type PerfTab } from "../features/performance/PerformancePage";
 import { ProcessesPage } from "../features/processes/ProcessesPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { SpeedTestPage } from "../features/speedtest/SpeedTestPage";
+import { StartupPage } from "../features/startup/StartupPage";
 import { StoragePage } from "../features/storage/StoragePage";
 import { startAppSettings } from "../stores/settings";
 import { startTelemetry } from "../stores/telemetry";
@@ -35,11 +37,13 @@ export function App() {
     <AppShell page={page} onNavigate={setPage}>
       {page === "overview" && <OverviewPage onNavigate={setPage} onOpenPerformance={openPerformance} />}
       {page === "performance" && <PerformancePage tab={perfTab} onTab={setPerfTab} />}
+      {page === "history" && <HistoryPage />}
       {page === "processes" && <ProcessesPage />}
       {page === "hardware" && <HardwarePage />}
       {page === "storage" && <StoragePage />}
       {page === "network" && <NetworkPage />}
       {page === "speedtest" && <SpeedTestPage />}
+      {page === "startup" && <StartupPage />}
       {page === "settings" && <SettingsPage />}
     </AppShell>
     </>

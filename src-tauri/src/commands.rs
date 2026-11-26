@@ -1,10 +1,13 @@
-//! Narrow IPC commands. No command accepts paths or shell input; `kill_process` is the only one that changes the system.
+//! Narrow IPC commands. No command accepts paths or shell input. Commands that change the system:
+//! `kill_process`, `set_process_priority` and `set_startup_enabled` (only for entries that exist).
 
 use crate::collector::Shared;
 use crate::domain::Latest;
 use crate::hardware::{self, HardwareInfo};
 use crate::speedtest;
+use crate::platform::windows as win;
 use tauri::{Emitter, Manager};
+use tauri_plugin_opener::OpenerExt;
 
 #[tauri::command]
 pub fn get_latest(state: tauri::State<'_, Shared>) -> Result<Latest, String> {
@@ -35,17 +38,29 @@ pub async fn get_hardware() -> Result<HardwareInfo, String> {
     tauri::async_runtime::spawn_blocking(hardware::collect).await.map_err(|e| e.to_string())
 }
 
-/// Ends one process after the user confirmed it. PID + start time must match a live process,
-/// so a PID Windows reused for a new process is never hit.
+/// Looks up a live process by PID + start time, so a PID Windows reused for a new process is never hit.
+fn live_process(pid: u32, start_time: u64) -> Result<sysinfo::System, String> {
+    let id = sysinfo::Pid::from_u32(pid);
+    let mut sys = sysinfo::System::new().map_err(|e| e.to_string())?;
+    sys.refresh_processes_specifics(
+        sysinfo::ProcessesToUpdate::Some(&[id]),
+        true,
+        sysinfo::ProcessRefreshKind::nothing().with_exe(sysinfo::UpdateKind::Always),
+    );
+    match sys.process(id) {
+        Some(p) if p.start_time() == start_time => Ok(sys),
+        _ => Err("The process has already exited.".into()),
+    }
+}
+
+/// Ends one process after the user confirmed it.
 #[tauri::command]
 pub fn kill_process(pid: u32, start_time: u64) -> Result<(), String> {
     if pid == std::process::id() {
         return Err("SystemCore cannot end itself.".into());
     }
-    let id = sysinfo::Pid::from_u32(pid);
-    let mut sys = sysinfo::System::new().map_err(|e| e.to_string())?;
-    sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[id]), true);
-    let p = sys.process(id).filter(|p| p.start_time() == start_time).ok_or("The process has already exited.")?;
+    let sys = live_process(pid, start_time)?;
+    let p = sys.process(sysinfo::Pid::from_u32(pid)).ok_or("The process has already exited.")?;
     if p.kill() {
         Ok(())
     } else {
@@ -110,5 +125,98 @@ pub fn launched_at_login() -> bool {
 pub fn set_prefs(prefs: crate::prefs::Prefs, state: tauri::State<'_, crate::prefs::SharedPrefs>) {
     if let Ok(mut p) = state.lock() {
         *p = prefs;
+    }
+}
+
+/// Shows the process's executable selected in File Explorer.
+#[tauri::command]
+pub fn open_process_location(app: tauri::AppHandle, pid: u32, start_time: u64) -> Result<(), String> {
+    let sys = live_process(pid, start_time)?;
+    let exe = sys.process(sysinfo::Pid::from_u32(pid)).and_then(|p| p.exe()).ok_or("Windows does not reveal this process's location.")?;
+    app.opener().reveal_item_in_dir(exe).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_process_priority(pid: u32, start_time: u64) -> Result<Option<&'static str>, String> {
+    live_process(pid, start_time)?;
+    Ok(win::system::priority(pid))
+}
+
+#[tauri::command]
+pub fn set_process_priority(pid: u32, start_time: u64, priority: String) -> Result<(), String> {
+    live_process(pid, start_time)?;
+    win::system::set_priority(pid, &priority)
+}
+
+/// Percent-encodes a query for a URL (RFC 3986 unreserved characters pass through).
+pub fn url_encode(s: &str) -> String {
+    s.bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => (b as char).to_string(),
+            _ => format!("%{b:02X}"),
+        })
+        .collect()
+}
+
+/// Opens a web search for the process name in the default browser.
+#[tauri::command]
+pub fn search_process(app: tauri::AppHandle, pid: u32, start_time: u64) -> Result<(), String> {
+    let sys = live_process(pid, start_time)?;
+    let name = sys.process(sysinfo::Pid::from_u32(pid)).map(|p| p.name().to_string_lossy().into_owned()).unwrap_or_default();
+    let url = format!("https://www.bing.com/search?q={}", url_encode(&format!("{name} process")));
+    app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_startup_apps() -> Vec<win::startup::StartupApp> {
+    win::startup::list()
+}
+
+#[tauri::command]
+pub fn set_startup_enabled(id: String, enabled: bool) -> Result<(), String> {
+    win::startup::set_enabled(&id, enabled)
+}
+
+/// The last `minutes` (max 24 h) as 360 equal time buckets, oldest first.
+#[tauri::command]
+pub fn get_history(minutes: u64, state: tauri::State<'_, crate::history::SharedHistory>) -> Vec<crate::history::Point> {
+    let now = crate::domain::now_ms();
+    let since = now.saturating_sub(minutes.clamp(1, 24 * 60) * 60_000);
+    state.lock().map(|q| crate::history::query(&q, since, now, 360)).unwrap_or_default()
+}
+
+#[tauri::command]
+pub fn is_elevated() -> bool {
+    win::system::is_elevated()
+}
+
+/// Relaunches through UAC (needed for FPS). The new instance starts before this one exits.
+#[tauri::command]
+pub fn restart_as_admin(app: tauri::AppHandle) -> Result<(), String> {
+    win::system::relaunch_elevated()?;
+    app.exit(0);
+    Ok(())
+}
+
+/// Saves the system report text to Downloads and shows it in Explorer. The UI supplies only the text;
+/// the location and file name are fixed here.
+#[tauri::command]
+pub fn save_report(app: tauri::AppHandle, text: String) -> Result<String, String> {
+    if text.len() > 1_000_000 {
+        return Err("Report too large.".into());
+    }
+    let dir = app.path().download_dir().map_err(|e| e.to_string())?;
+    let path = dir.join(format!("SystemCore-report-{}.txt", crate::domain::now_ms() / 1000));
+    std::fs::write(&path, text).map_err(|e| e.to_string())?;
+    let _ = app.opener().reveal_item_in_dir(&path);
+    Ok(path.to_string_lossy().into_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn url_encode_escapes_everything_but_unreserved() {
+        assert_eq!(super::url_encode("svchost.exe process"), "svchost.exe%20process");
+        assert_eq!(super::url_encode("a&b=c/é"), "a%26b%3Dc%2F%C3%A9");
     }
 }

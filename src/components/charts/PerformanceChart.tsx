@@ -18,13 +18,18 @@ interface Props {
   max?: number;
   size?: "sm" | "md" | "lg";
   stale?: boolean;
+  /** Slots on the x axis (default: the live 60 s window). */
+  length?: number;
+  /** Left axis label and tooltip time for a slot `n` steps before the newest. */
+  startLabel?: string;
+  agoLabel?: (n: number) => string;
 }
 
-const LAST = HISTORY_LENGTH - 1;
+const liveAgo = (n: number) => (n === 0 ? "now" : `${n}s ago`);
 
 // Gaps (null) break the line instead of being drawn as zero.
-function paths(data: (number | null)[], max: number) {
-  const offset = HISTORY_LENGTH - data.length;
+function paths(data: (number | null)[], max: number, length: number) {
+  const offset = length - data.length;
   const segments: [number, number][][] = [];
   let cur: [number, number][] = [];
   data.forEach((v, i) => {
@@ -42,9 +47,10 @@ function paths(data: (number | null)[], max: number) {
   });
 }
 
-const valueAt = (data: (number | null)[], slot: number) => data[slot - (HISTORY_LENGTH - data.length)] ?? null;
+const valueAt = (data: (number | null)[], slot: number, length: number) => data[slot - (length - data.length)] ?? null;
 
-export function PerformanceChart({ title, series, format, max, size = "md", stale }: Props) {
+export function PerformanceChart({ title, series, format, max, size = "md", stale, length = HISTORY_LENGTH, startLabel, agoLabel = liveAgo }: Props) {
+  const LAST = length - 1;
   const [hover, setHover] = useState<number | null>(null);
   // Each new sample restarts a one-step scroll animation, so the trace glides left instead of jumping.
   const [sample, setSample] = useState(0);
@@ -83,13 +89,13 @@ export function PerformanceChart({ title, series, format, max, size = "md", stal
         onPointerMove={interactive ? onMove : undefined}
         onPointerLeave={interactive ? () => setHover(null) : undefined}
       >
-        <svg viewBox={`0 0 ${LAST} 100`} preserveAspectRatio="none" role="img" aria-label={`${title ?? "History"}, last ${HISTORY_LENGTH} seconds. Latest: ${summary}`}>
+        <svg viewBox={`0 0 ${LAST} 100`} preserveAspectRatio="none" role="img" aria-label={`${title ?? "History"}, ${startLabel ?? `last ${length} seconds`}. Latest: ${summary}`}>
           {[25, 50, 75].map((y) => (
             <line key={y} x1="0" x2={LAST} y1={y} y2={y} className="chart__grid" />
           ))}
           <g className="chart__scroll" key={sample}>
             {series.map((s) =>
-              paths(s.data, scale).map((p, i) => (
+              paths(s.data, scale, length).map((p, i) => (
                 <g key={`${s.label}${i}`}>
                   <path d={p.area} fill={s.color} opacity="0.08" />
                   <path d={p.line} fill="none" stroke={s.color} strokeWidth="1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
@@ -101,7 +107,7 @@ export function PerformanceChart({ title, series, format, max, size = "md", stal
         <span className="chart__axis chart__axis--max">{format(scale)}</span>
         {size !== "sm" && (
           <>
-            <span className="chart__axis chart__axis--start">−{HISTORY_LENGTH}s</span>
+            <span className="chart__axis chart__axis--start">{startLabel ?? `−${length}s`}</span>
             <span className="chart__axis chart__axis--end">now</span>
           </>
         )}
@@ -114,9 +120,9 @@ export function PerformanceChart({ title, series, format, max, size = "md", stal
           <>
             <div className="chart__cursor" style={{ left: `${pos}%` }} />
             <div className="chart__tooltip" style={pos > 60 ? { right: `${100 - pos}%`, marginRight: 8 } : { left: `${pos}%`, marginLeft: 8 }}>
-              <div className="chart__tooltip-time">{ago === 0 ? "now" : `${ago}s ago`}</div>
+              <div className="chart__tooltip-time">{agoLabel(ago)}</div>
               {series.map((s) => {
-                const v = valueAt(s.data, hover);
+                const v = valueAt(s.data, hover, length);
                 return (
                   <div key={s.label} className="chart__tooltip-row">
                     <span>{s.label}</span>

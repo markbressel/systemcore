@@ -4,7 +4,7 @@ import { useSyncExternalStore } from "react";
 import { launchedAtLogin, onOverlayChanged, setOverlay, setPrefs, showMain } from "../lib/tauri";
 import type { Corner } from "../features/overlay/placement";
 
-export type OverlayRow = "cpu" | "gpu" | "ram" | "net";
+export type OverlayRow = "fps" | "cpu" | "gpu" | "ram" | "net";
 
 export interface OverlaySettings {
   corner: Corner;
@@ -20,6 +20,8 @@ export interface OverlaySettings {
   rows: Record<OverlayRow, boolean>;
   /** One slim line instead of the card. */
   compact: boolean;
+  /** Open the overlay while a fullscreen app (game) is in front, close it after. */
+  autoShow: boolean;
 }
 
 export interface StartupSettings {
@@ -36,6 +38,11 @@ export interface AlertSettings {
   cpuTempC: number;
   gpuTempC: number;
   ramPercent: number;
+  /** Notify when one program keeps using a lot of CPU or RAM. */
+  hogEnabled: boolean;
+  hogCpuPercent: number;
+  hogMemoryGb: number;
+  hogMinutes: number;
 }
 
 export interface Settings {
@@ -52,11 +59,12 @@ const DEFAULTS: Settings = {
     locked: false,
     position: null,
     scale: 1,
-    rows: { cpu: true, gpu: true, ram: true, net: true },
+    rows: { fps: true, cpu: true, gpu: true, ram: true, net: true },
     compact: false,
+    autoShow: false,
   },
   startup: { closeToTray: true, startHidden: true, overlayAtStartup: false },
-  alerts: { enabled: false, cpuTempC: 90, gpuTempC: 85, ramPercent: 90 },
+  alerts: { enabled: false, cpuTempC: 90, gpuTempC: 85, ramPercent: 90, hogEnabled: false, hogCpuPercent: 50, hogMemoryGb: 4, hogMinutes: 3 },
 };
 
 function load(): Settings {
@@ -118,7 +126,7 @@ export async function toggleOverlayWindow() {
 export function startAppSettings() {
   let sent = "";
   const push = () => {
-    const next = JSON.stringify({ closeToTray: settings.startup.closeToTray, alerts: settings.alerts });
+    const next = JSON.stringify({ closeToTray: settings.startup.closeToTray, autoOverlay: settings.overlay.autoShow, alerts: settings.alerts });
     if (next !== sent) {
       sent = next;
       void setPrefs(JSON.parse(next)).catch(() => {});

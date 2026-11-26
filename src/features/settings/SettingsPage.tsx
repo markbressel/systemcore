@@ -1,8 +1,9 @@
 import { disable as disableAutostart, enable as enableAutostart, isEnabled as autostartEnabled } from "@tauri-apps/plugin-autostart";
-import { BellRing, PictureInPicture2, Power } from "lucide-react";
+import { BellRing, Gamepad2, PictureInPicture2, Power, ShieldCheck } from "lucide-react";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { PageContainer } from "../../components/layout/PageContainer";
 import { toggleOverlayWindow, updateOverlay, updateSettings, useOverlayOpen, useSettings, type AlertSettings, type OverlayRow } from "../../stores/settings";
+import { isElevated, restartAsAdmin } from "../../lib/tauri";
 import { CORNERS } from "../overlay/placement";
 
 function Switch({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
@@ -78,6 +79,7 @@ function Limit({ label, unit, value, min, max, disabled, onChange }: { label: st
 }
 
 const ROWS: { id: OverlayRow; label: string }[] = [
+  { id: "fps", label: "FPS" },
   { id: "cpu", label: "CPU" },
   { id: "gpu", label: "GPU" },
   { id: "ram", label: "RAM" },
@@ -101,9 +103,44 @@ export function SettingsPage() {
     }
   };
   const setAlert = (patch: Partial<AlertSettings>) => updateSettings("alerts", patch);
+  const [elevated, setElevated] = useState<boolean | null>(null);
+  const [elevateError, setElevateError] = useState<string | null>(null);
+  useEffect(() => {
+    isElevated().then(setElevated).catch(() => setElevated(null));
+  }, []);
 
   return (
     <PageContainer title="Settings" subtitle="Saved on this PC. Changes apply immediately.">
+      <Section icon={<Gamepad2 className="panel__icon" aria-hidden="true" />} title="Gaming">
+        <SettingRow
+          title="FPS measurement"
+          hint={
+            elevated
+              ? "Active. FPS, frame time and 1% low of the app in front are shown in the overlay and recorded in History."
+              : "Windows only shares other apps' frame events with administrator rights. Restart SystemCore as administrator to see FPS."
+          }
+          control={
+            elevated ? (
+              <span className="setting__status">
+                <ShieldCheck aria-hidden="true" /> Running as administrator
+              </span>
+            ) : (
+              <div className="setting__stack">
+                <button type="button" className="button button--primary" onClick={() => restartAsAdmin().catch((e) => setElevateError(String(e)))}>
+                  Restart as administrator
+                </button>
+                {elevateError && <span className="setting__error">{elevateError}</span>}
+              </div>
+            )
+          }
+        />
+        <SettingRow
+          title="Show overlay in games"
+          hint="Opens the overlay when an app goes fullscreen (or borderless fullscreen) and closes it when you leave. Fullscreen videos count too."
+          control={<Switch label="Show overlay in games" checked={o.autoShow} onChange={(autoShow) => updateOverlay({ autoShow })} />}
+        />
+      </Section>
+
       <Section icon={<PictureInPicture2 className="panel__icon" aria-hidden="true" />} title="Overlay">
         <SettingRow
           title="Show overlay"
@@ -125,7 +162,7 @@ export function SettingsPage() {
 
         <SettingRow
           title="Compact layout"
-          hint="A single slim line instead of the card: usage and temperature only."
+          hint="A single slim line instead of the card: FPS, usage, temperature, network and ping."
           control={<Switch label="Compact layout" checked={o.compact} onChange={(compact) => updateOverlay({ compact })} />}
         />
 
@@ -232,6 +269,29 @@ export function SettingsPage() {
           hint="Share of physical RAM in use."
           disabled={!alerts.enabled}
           control={<Limit label="Memory usage limit" unit="%" min={50} max={99} value={alerts.ramPercent} disabled={!alerts.enabled} onChange={(ramPercent) => setAlert({ ramPercent })} />}
+        />
+        <SettingRow
+          title="Heavy programs"
+          hint="Notify when one program keeps using a lot of CPU or memory, and say which one."
+          control={<Switch label="Heavy program alerts" checked={alerts.hogEnabled} onChange={(hogEnabled) => setAlert({ hogEnabled })} />}
+        />
+        <SettingRow
+          title="Program CPU limit"
+          hint="Share of the whole processor, as in Task Manager."
+          disabled={!alerts.hogEnabled}
+          control={<Limit label="Program CPU limit" unit="%" min={10} max={100} value={alerts.hogCpuPercent} disabled={!alerts.hogEnabled} onChange={(hogCpuPercent) => setAlert({ hogCpuPercent })} />}
+        />
+        <SettingRow
+          title="Program memory limit"
+          hint="Memory one program may use before it counts as heavy."
+          disabled={!alerts.hogEnabled}
+          control={<Limit label="Program memory limit" unit="GB" min={1} max={128} value={alerts.hogMemoryGb} disabled={!alerts.hogEnabled} onChange={(hogMemoryGb) => setAlert({ hogMemoryGb })} />}
+        />
+        <SettingRow
+          title="For at least"
+          hint="Short spikes (loading, updates) are ignored."
+          disabled={!alerts.hogEnabled}
+          control={<Limit label="Minutes above the limit" unit="min" min={1} max={60} value={alerts.hogMinutes} disabled={!alerts.hogEnabled} onChange={(hogMinutes) => setAlert({ hogMinutes })} />}
         />
       </Section>
     </PageContainer>

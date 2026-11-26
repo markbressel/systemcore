@@ -2,7 +2,10 @@
 
 pub mod memory;
 pub mod nvidia;
+pub mod fps;
 pub mod pdh;
+pub mod startup;
+pub mod system;
 pub mod wmi_sources;
 
 /// Manual hardware probe: `cargo test probe -- --ignored --nocapture`. Prints what each source returns here.

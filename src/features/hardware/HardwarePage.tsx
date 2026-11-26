@@ -1,18 +1,50 @@
-import { CircuitBoard, Cpu, MemoryStick, Monitor, MonitorCog, Network } from "lucide-react";
+import { getVersion } from "@tauri-apps/api/app";
+import { Check, CircuitBoard, ClipboardCopy, Cpu, FileDown, MemoryStick, Monitor, MonitorCog, Network } from "lucide-react";
+import { useState } from "react";
 import { EmptyState, ErrorState, LoadingState } from "../../components/feedback/States";
 import { HardwareCard } from "../../components/hardware/HardwareCard";
 import { PageContainer } from "../../components/layout/PageContainer";
 import { StatList } from "../../components/metrics/StatList";
 import { formatBytes } from "../../lib/format";
+import { saveReport } from "../../lib/tauri";
 import { useHardware } from "../../stores/hardware";
+import { useTelemetry } from "../../stores/telemetry";
+import { specReport } from "./report";
 
 export function HardwarePage() {
   const { hardware: hw, error } = useHardware();
+  const { disks } = useTelemetry();
+  const [done, setDone] = useState<string | null>(null);
   if (error) return <ErrorState message={error} />;
   if (!hw) return <LoadingState label="Reading hardware inventory…" />;
 
+  const report = async () => specReport(hw, disks, await getVersion().catch(() => null));
+  const act = (f: () => Promise<string>) =>
+    f()
+      .then(setDone)
+      .catch((e) => setDone(`Failed: ${e}`));
+
   return (
-    <PageContainer title="Hardware" subtitle="Inventory reported by Windows. Values the provider cannot read are marked as not available.">
+    <PageContainer
+      title="Hardware"
+      subtitle="Inventory reported by Windows. Values the provider cannot read are marked as not available."
+      actions={
+        <>
+          <button type="button" className="button button--secondary" onClick={() => act(async () => (await navigator.clipboard.writeText(await report()), "Specs copied to the clipboard."))}>
+            <ClipboardCopy className="button__icon" aria-hidden="true" /> Copy specs
+          </button>
+          <button type="button" className="button button--secondary" onClick={() => act(async () => `Saved to ${await saveReport(await report())}`)}>
+            <FileDown className="button__icon" aria-hidden="true" /> Save report
+          </button>
+        </>
+      }
+    >
+      {done && (
+        <div className={`notice${done.startsWith("Failed") ? " notice--danger" : " notice--success"}`} role="status">
+          <Check aria-hidden="true" /> {done}
+          {!done.startsWith("Failed") && " The report leaves out your computer name and MAC addresses."}
+        </div>
+      )}
       <div className="grid grid--auto">
         <HardwareCard title="Processor" icon={Cpu}>
           <StatList

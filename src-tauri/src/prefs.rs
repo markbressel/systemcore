@@ -3,22 +3,32 @@
 
 use crate::domain::SystemSnapshot;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct AlertPrefs {
     pub enabled: bool,
     pub cpu_temp_c: f32,
     pub gpu_temp_c: f32,
     pub ram_percent: f32,
+    /// Notify when one program keeps using a lot of CPU or RAM.
+    pub hog_enabled: bool,
+    /// Share of the whole machine, like Task Manager.
+    pub hog_cpu_percent: f32,
+    pub hog_memory_gb: f32,
+    pub hog_minutes: f32,
 }
 
 #[derive(Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[serde(default)]
 pub struct Prefs {
     /// Closing the main window hides it to the tray instead of quitting.
     pub close_to_tray: bool,
+    /// Show the overlay while a fullscreen app (normally a game) is in front.
+    pub auto_overlay: bool,
     pub alerts: AlertPrefs,
 }
 
@@ -68,9 +78,88 @@ impl Alerts {
     }
 }
 
+/// One process sample for [`HogWatch`].
+pub struct ProcSample<'a> {
+    pub pid: u32,
+    pub start_time: u64,
+    pub name: &'a str,
+    pub cpu_percent: Option<f32>,
+    pub memory_bytes: Option<u64>,
+}
+
+#[derive(Default)]
+struct HogState {
+    cpu_since: Option<u64>,
+    mem_since: Option<u64>,
+    cpu_told: bool,
+    mem_told: bool,
+}
+
+/// Notifies once when a process stays above the CPU or RAM limit for the set number of minutes;
+/// it can notify again after the process calms down.
+#[derive(Default)]
+pub struct HogWatch {
+    state: HashMap<(u32, u64), HogState>,
+}
+
+impl HogWatch {
+    pub fn update(&mut self, now_secs: u64, procs: &[ProcSample], a: &AlertPrefs) -> Vec<String> {
+        if !a.hog_enabled {
+            self.state.clear();
+            return vec![];
+        }
+        let need = (a.hog_minutes.max(0.5) * 60.0) as u64;
+        let mins = a.hog_minutes;
+        let mut next = HashMap::new();
+        let mut out = vec![];
+        for p in procs {
+            let mut s = self.state.remove(&(p.pid, p.start_time)).unwrap_or_default();
+            let check = |over: bool, since: &mut Option<u64>, told: &mut bool| -> bool {
+                if !over {
+                    *since = None;
+                    *told = false;
+                    return false;
+                }
+                let start = *since.get_or_insert(now_secs);
+                if !*told && now_secs - start >= need {
+                    *told = true;
+                    return true;
+                }
+                false
+            };
+            let cpu = p.cpu_percent.unwrap_or(0.0);
+            if check(cpu >= a.hog_cpu_percent, &mut s.cpu_since, &mut s.cpu_told) {
+                out.push(format!("{} has used {cpu:.0}% CPU for {mins} min.", p.name));
+            }
+            let gb = p.memory_bytes.unwrap_or(0) as f32 / 1e9;
+            if check(gb >= a.hog_memory_gb, &mut s.mem_since, &mut s.mem_told) {
+                out.push(format!("{} has used {gb:.1} GB of RAM for {mins} min.", p.name));
+            }
+            next.insert((p.pid, p.start_time), s);
+        }
+        // Exited processes drop out here.
+        self.state = next;
+        out
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hog_needs_sustained_load_and_notifies_once() {
+        let prefs = AlertPrefs { hog_enabled: true, hog_cpu_percent: 50.0, hog_memory_gb: 100.0, hog_minutes: 1.0, ..Default::default() };
+        let p = |cpu| [ProcSample { pid: 7, start_time: 1, name: "miner.exe", cpu_percent: Some(cpu), memory_bytes: Some(0) }];
+        let mut w = HogWatch::default();
+        assert!(w.update(0, &p(90.0), &prefs).is_empty());
+        assert!(w.update(30, &p(90.0), &prefs).is_empty());
+        assert_eq!(w.update(60, &p(90.0), &prefs), vec!["miner.exe has used 90% CPU for 1 min."]);
+        assert!(w.update(90, &p(90.0), &prefs).is_empty(), "told once");
+        assert!(w.update(100, &p(5.0), &prefs).is_empty(), "calmed down: re-arms");
+        assert!(w.update(110, &p(90.0), &prefs).is_empty(), "timer restarts");
+        assert_eq!(w.update(170, &p(90.0), &prefs).len(), 1);
+    }
 
     #[test]
     fn alerts_once_then_rearms_below_hysteresis() {

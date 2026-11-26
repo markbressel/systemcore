@@ -35,6 +35,30 @@
     flex: none;
   }
 
+  &__status {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-2;
+    color: var(--color-success);
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  &__stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: $space-1;
+  }
+
+  &__error {
+    color: var(--color-danger);
+    font-size: $font-sm;
+  }
+
   &--disabled &__title {
     color: var(--color-text-muted);
   }

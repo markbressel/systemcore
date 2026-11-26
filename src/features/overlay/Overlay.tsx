@@ -1,5 +1,5 @@
 import { currentMonitor, getCurrentWindow, LogicalSize, PhysicalPosition } from "@tauri-apps/api/window";
-import { AppWindow, ArrowDown, ArrowUp, Lock, Move, X } from "lucide-react";
+import { Activity, AppWindow, ArrowDown, ArrowUp, Lock, Move, X } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
 import logo from "../../assets/logo.png";
 import { formatBytes, formatRate } from "../../lib/format";
@@ -109,6 +109,13 @@ export function Overlay() {
   const watts = v(gpu?.powerWatts);
   const rx = v(system?.network.rxBytesPerSec);
   const tx = v(system?.network.txBytesPerSec);
+  const ping = v(system?.network.latencyMs);
+  const game = system?.game;
+  const fps = v(game?.fps);
+  const frameMs = v(game?.frameTimeMs);
+  const low1 = v(game?.low1Fps);
+  // Short reason when FPS is missing: no admin rights, or the foreground app is not rendering.
+  const fpsHint = game?.fps.status === "unsupported" ? "Needs admin" : "No frames";
 
   const rows = o.rows;
   const actions = (
@@ -125,6 +132,7 @@ export function Overlay() {
   const live = <span className={`overlay__live${stale || !system ? " overlay__live--off" : ""}`} title={stale ? "Data stale" : "Live"} />;
   const modeIcon = movable ? <Move className="overlay__mode" aria-label="Drag to move" /> : o.freeMove ? <Lock className="overlay__mode" aria-label="Position locked" /> : null;
   const rateText = (r: number | null) => (r == null ? "—" : formatRate(r));
+  const pingText = ping == null ? "—" : `${ping.toFixed(0)} ms`;
 
   return (
     <main
@@ -139,6 +147,12 @@ export function Overlay() {
         <>
           <img className="overlay__logo" src={logo} alt="" />
           {live}
+          {rows.fps && (
+            <span className="overlay__chip overlay__chip--fps">
+              <b className="overlay__label">FPS</b>
+              <span className="overlay__value">{fps == null ? "—" : fps.toFixed(0)}</span>
+            </span>
+          )}
           {rows.cpu && <Chip label="CPU" tone="cpu" percent={v(cpu?.usagePercent)} extra={temp(v(cpu?.temperatureC))} />}
           {rows.gpu && <Chip label="GPU" tone="gpu" percent={v(gpu?.usagePercent)} extra={temp(v(gpu?.temperatureC))} />}
           {rows.ram && <Chip label="RAM" tone="memory" percent={v(mem?.usagePercent)} />}
@@ -148,6 +162,8 @@ export function Overlay() {
               <span className="overlay__rate">{rateText(rx)}</span>
               <ArrowUp aria-hidden="true" />
               <span className="overlay__rate">{rateText(tx)}</span>
+              <Activity aria-hidden="true" />
+              <span className="overlay__ping">{pingText}</span>
             </span>
           )}
           {modeIcon}
@@ -165,6 +181,25 @@ export function Overlay() {
             {actions}
           </header>
 
+          {rows.fps && (
+            <div className="overlay__fps" title={game?.process ?? undefined}>
+              <span className="overlay__fps-value">
+                {fps == null ? "—" : fps.toFixed(0)}
+                <small>FPS</small>
+              </span>
+              <span className="overlay__fps-details">
+                {fps == null ? (
+                  <span>{fpsHint}</span>
+                ) : (
+                  <>
+                    <span>{frameMs?.toFixed(1)} ms</span>
+                    <span>1% low {low1?.toFixed(0)}</span>
+                  </>
+                )}
+                <span className="overlay__fps-app">{game?.process?.replace(/\.exe$/i, "") ?? ""}</span>
+              </span>
+            </div>
+          )}
           {rows.cpu && <Row label="CPU" tone="cpu" percent={v(cpu?.usagePercent)} details={[temp(v(cpu?.temperatureC)), ghz == null ? null : `${(ghz / 1000).toFixed(2)} GHz`]} />}
           {rows.gpu && (
             <Row
@@ -180,6 +215,9 @@ export function Overlay() {
             <footer className="overlay__net">
               <span>
                 <ArrowDown aria-hidden="true" /> {rateText(rx)}
+              </span>
+              <span>
+                <Activity aria-hidden="true" /> {pingText}
               </span>
               <span>
                 <ArrowUp aria-hidden="true" /> {rateText(tx)}

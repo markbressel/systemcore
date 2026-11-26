@@ -65,8 +65,66 @@ html:has(.overlay) body {
       }
 
       svg:first-child { color: var(--color-chart-download); }
-      svg:last-of-type { color: var(--color-chart-upload); }
+      svg:nth-of-type(2) { color: var(--color-chart-upload); }
+      svg:nth-of-type(3) { color: var(--color-accent); }
     }
+  }
+
+  &__ping {
+    display: inline-block;
+    min-width: 6ch;
+  }
+
+  &__chip--fps {
+    --tone: var(--color-accent);
+
+    .overlay__value {
+      font-size: 14px;
+    }
+  }
+
+  // Big frame-rate readout with frame time, 1 % low and the app it belongs to.
+  &__fps {
+    @include mono-num;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    column-gap: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+
+  &__fps-value {
+    color: var(--color-accent);
+    font-family: $font-family-display;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+
+    small {
+      margin-left: 3px;
+      color: var(--color-text-muted);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+    }
+  }
+
+  &__fps-details {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    column-gap: 8px;
+    color: var(--color-text-secondary);
+    font-size: 10.5px;
+    white-space: nowrap;
+  }
+
+  &__fps-app {
+    flex-basis: 100%;
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+    color: var(--color-text-muted);
   }
 
   &__rate {
@@ -276,6 +334,7 @@ html:has(.overlay) body {
     }
 
     span:first-child svg { color: var(--color-chart-download); }
+    span:nth-child(2) svg { color: var(--color-accent); }
     span:last-child svg { color: var(--color-chart-upload); }
   }
 }
