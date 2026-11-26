@@ -312,6 +312,16 @@ html:has(.overlay) body {
 
   &__hot { color: var(--color-danger); }
 
+  // "Limited by GPU": what holds the frame rate back.
+  &__limit {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+
+    b { color: var(--color-accent); }
+  }
+
+  &__hot b { color: var(--color-danger); }
+
   &__net {
     @include mono-num;
     display: flex;

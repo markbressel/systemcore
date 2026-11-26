@@ -1,6 +1,7 @@
 //! NVIDIA sensors through NVML. `nvml.dll` ships with the NVIDIA driver and is loaded at runtime,
 //! so systems without an NVIDIA GPU simply get `None` here.
 
+use nvml_wrapper::bitmasks::device::ThrottleReasons;
 use nvml_wrapper::enum_wrappers::device::{Clock, TemperatureSensor};
 use nvml_wrapper::Nvml;
 
@@ -20,6 +21,8 @@ pub struct NvidiaReading {
     pub fan_percent: Option<f32>,
     pub vram_used: Option<u64>,
     pub vram_total: Option<u64>,
+    /// The driver is lowering clocks because the GPU is too hot.
+    pub thermal_throttle: Option<bool>,
 }
 
 impl Nvidia {
@@ -47,6 +50,10 @@ impl Nvidia {
                     fan_percent: d.fan_speed(0).ok().map(|p| p as f32),
                     vram_used: mem.as_ref().map(|m| m.used),
                     vram_total: mem.map(|m| m.total),
+                    thermal_throttle: d
+                        .current_throttle_reasons()
+                        .ok()
+                        .map(|r| r.intersects(ThrottleReasons::SW_THERMAL_SLOWDOWN | ThrottleReasons::HW_THERMAL_SLOWDOWN)),
                 })
             })
             .collect()

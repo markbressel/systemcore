@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import logo from "../../assets/logo.png";
 import { NAV_SECTIONS, type PageId } from "./navigation";
 import { SystemStatus } from "./SystemStatus";
+import { t } from "../../lib/i18n";
 
 interface Props {
   active: PageId;
@@ -23,10 +24,10 @@ export function Sidebar({ active, onSelect }: Props) {
           SYSTEM<span>CORE</span>
         </span>
       </div>
-      <nav className="sidebar__navigation" aria-label="Main">
+      <nav className="sidebar__navigation" aria-label={t("Main")}>
         {NAV_SECTIONS.map((section) => (
           <div key={section.title} className="sidebar__section">
-            <div className="sidebar__section-title">{section.title}</div>
+            <div className="sidebar__section-title">{t(section.title)}</div>
             <ul>
               {section.pages.map(({ id, label, icon: Icon }) => (
                 <li key={id}>
@@ -34,12 +35,12 @@ export function Sidebar({ active, onSelect }: Props) {
                     type="button"
                     className={`sidebar__item${id === active ? " sidebar__item--active" : ""}`}
                     aria-current={id === active ? "page" : undefined}
-                    aria-label={label}
-                    title={label}
+                    aria-label={t(label)}
+                    title={t(label)}
                     onClick={() => onSelect(id)}
                   >
                     <Icon className="sidebar__icon" aria-hidden="true" />
-                    <span className="sidebar__label">{label}</span>
+                    <span className="sidebar__label">{t(label)}</span>
                   </button>
                 </li>
               ))}
@@ -49,7 +50,7 @@ export function Sidebar({ active, onSelect }: Props) {
       </nav>
       <div className="sidebar__footer">
         <SystemStatus />
-        <span className="sidebar__version">{version ? `v${version} · ` : ""}local only</span>
+        <span className="sidebar__version">{version ? `v${version} · ` : ""}{t("local only")}</span>
       </div>
     </aside>
   );

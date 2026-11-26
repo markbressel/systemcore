@@ -122,7 +122,8 @@ pub fn launched_at_login() -> bool {
 }
 
 #[tauri::command]
-pub fn set_prefs(prefs: crate::prefs::Prefs, state: tauri::State<'_, crate::prefs::SharedPrefs>) {
+pub fn set_prefs(app: tauri::AppHandle, prefs: crate::prefs::Prefs, state: tauri::State<'_, crate::prefs::SharedPrefs>) {
+    crate::set_tray_language(&app, prefs.language == "hu");
     if let Ok(mut p) = state.lock() {
         *p = prefs;
     }
@@ -210,6 +211,57 @@ pub fn save_report(app: tauri::AppHandle, text: String) -> Result<String, String
     std::fs::write(&path, text).map_err(|e| e.to_string())?;
     let _ = app.opener().reveal_item_in_dir(&path);
     Ok(path.to_string_lossy().into_owned())
+}
+
+/// Loads every CPU core for `seconds` (5–120) off the UI thread; resolves to the score.
+#[tauri::command]
+pub async fn run_cpu_benchmark(seconds: u64, state: tauri::State<'_, crate::benchmark::BenchmarkState>) -> Result<f64, String> {
+    let cancel = state.cancel.clone();
+    cancel.store(false, std::sync::atomic::Ordering::Relaxed);
+    let duration = std::time::Duration::from_secs(seconds.clamp(5, 120));
+    tauri::async_runtime::spawn_blocking(move || crate::benchmark::run_cpu(duration, &cancel))
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Cancelled.".to_string())
+}
+
+#[tauri::command]
+pub fn cancel_benchmark(state: tauri::State<'_, crate::benchmark::BenchmarkState>) {
+    state.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Sizes of everything directly inside `path` (default: the user's home folder), largest first.
+#[tauri::command]
+pub async fn scan_folder(app: tauri::AppHandle, path: Option<String>) -> Result<crate::cleanup::FolderScan, String> {
+    let dir = match path {
+        Some(p) => std::path::PathBuf::from(p),
+        None => app.path().home_dir().map_err(|e| e.to_string())?,
+    };
+    if !dir.is_absolute() || !dir.is_dir() {
+        return Err("Not a folder.".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || crate::cleanup::scan(&dir)).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn cleanup_targets() -> Result<Vec<crate::cleanup::CleanupTarget>, String> {
+    tauri::async_runtime::spawn_blocking(crate::cleanup::targets).await.map_err(|e| e.to_string())
+}
+
+/// Deletes one fixed cleanup target's contents; resolves to the bytes freed.
+#[tauri::command]
+pub async fn clean_target(id: String) -> Result<u64, String> {
+    tauri::async_runtime::spawn_blocking(move || crate::cleanup::clean(&id)).await.map_err(|e| e.to_string())?
+}
+
+/// Shows a file or folder in Explorer.
+#[tauri::command]
+pub fn reveal_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    let p = std::path::PathBuf::from(path);
+    if !p.is_absolute() || !p.exists() {
+        return Err("Path not found.".into());
+    }
+    app.opener().reveal_item_in_dir(&p).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

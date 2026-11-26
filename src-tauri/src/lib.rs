@@ -1,10 +1,14 @@
+mod benchmark;
+mod cleanup;
 mod collector;
+mod gamemode;
 mod commands;
 mod domain;
 mod hardware;
 mod history;
 mod platform;
 mod prefs;
+mod session;
 mod speedtest;
 
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
@@ -23,16 +27,32 @@ fn toggle_overlay_async(app: &AppHandle) {
     });
 }
 
+/// Tray menu entries, kept so their text can follow the UI language (see `set_tray_language`).
+pub struct TrayItems([MenuItem<tauri::Wry>; 3]);
+
+const TRAY_TEXT: [(&str, &str); 3] = [
+    ("Open SystemCore", "SystemCore megnyitása"),
+    ("Show / hide overlay\tCtrl+Shift+O", "Lebegő kijelző be/ki\tCtrl+Shift+O"),
+    ("Quit SystemCore", "Kilépés a SystemCore-ból"),
+];
+
+/// The tray is built before the UI sends its settings, so the language is applied afterwards.
+pub fn set_tray_language(app: &AppHandle, hu: bool) {
+    if let Some(items) = app.try_state::<TrayItems>() {
+        for (item, (en, hu_text)) in items.0.iter().zip(TRAY_TEXT) {
+            let _ = item.set_text(if hu { hu_text } else { en });
+        }
+    }
+}
+
 fn build_tray(app: &tauri::App) -> tauri::Result<()> {
-    let menu = Menu::with_items(
-        app,
-        &[
-            &MenuItem::with_id(app, "show", "Open SystemCore", true, None::<&str>)?,
-            &MenuItem::with_id(app, "overlay", "Show / hide overlay\tCtrl+Shift+O", true, None::<&str>)?,
-            &PredefinedMenuItem::separator(app)?,
-            &MenuItem::with_id(app, "quit", "Quit SystemCore", true, None::<&str>)?,
-        ],
-    )?;
+    let items = [
+        MenuItem::with_id(app, "show", TRAY_TEXT[0].0, true, None::<&str>)?,
+        MenuItem::with_id(app, "overlay", TRAY_TEXT[1].0, true, None::<&str>)?,
+        MenuItem::with_id(app, "quit", TRAY_TEXT[2].0, true, None::<&str>)?,
+    ];
+    let menu = Menu::with_items(app, &[&items[0], &items[1], &PredefinedMenuItem::separator(app)?, &items[2]])?;
+    app.manage(TrayItems(items));
     let mut tray = TrayIconBuilder::with_id("main")
         .tooltip("SystemCore")
         .menu(&menu)
@@ -59,7 +79,12 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
 
 pub fn run() {
     let overlay_hotkey = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyO);
+    platform::windows::system::wait_for_previous_instance();
     tauri::Builder::default()
+        // Must be the first plugin: a second launch just brings the running window forward.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            let _ = commands::show_main_window(app);
+        }))
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
@@ -78,6 +103,7 @@ pub fn run() {
         .manage(prefs::SharedPrefs::default())
         .manage(history::SharedHistory::default())
         .manage(speedtest::SpeedTestState::default())
+        .manage(benchmark::BenchmarkState::default())
         .setup(move |app| {
             let shared = app.state::<collector::Shared>().inner().clone();
             let prefs = app.state::<prefs::SharedPrefs>().inner().clone();
@@ -125,7 +151,13 @@ pub fn run() {
             commands::get_history,
             commands::is_elevated,
             commands::restart_as_admin,
-            commands::save_report
+            commands::save_report,
+            commands::run_cpu_benchmark,
+            commands::cancel_benchmark,
+            commands::scan_folder,
+            commands::cleanup_targets,
+            commands::clean_target,
+            commands::reveal_path
         ])
         .run(tauri::generate_context!())
         .expect("error while running SystemCore");

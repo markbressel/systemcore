@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { STATUS_LABEL } from "../../lib/format";
 import type { MetricStatus } from "../../types/telemetry";
+import { t } from "../../lib/i18n";
 
 export type Tone = "success" | "warning" | "danger" | "info" | "accent" | "neutral";
 
@@ -26,9 +27,9 @@ const METRIC_TONE: Record<MetricStatus, Tone> = {
 /** Data-availability state of a metric (card footers, detail views). */
 export function MetricStatus({ status, source }: { status: MetricStatus; source?: string }) {
   return (
-    <span title={source ? `Source: ${source}` : undefined}>
+    <span title={source ? t("Source: {source}", { source }) : undefined}>
       <StatusBadge tone={METRIC_TONE[status]} plain>
-        {STATUS_LABEL[status]}
+        {t(STATUS_LABEL[status])}
       </StatusBadge>
     </span>
   );

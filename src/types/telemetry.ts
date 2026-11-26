@@ -26,6 +26,8 @@ export interface CpuSnapshot {
   /** Highest effective clock seen this session (scale for the frequency bar). */
   peakFrequencyMhz: Metric<number>;
   temperatureC: Metric<number>;
+  /** Slowing down because it is too hot; null without a temperature reading. */
+  thermalThrottling: boolean | null;
 }
 
 export interface MemorySnapshot {
@@ -53,6 +55,8 @@ export interface GpuSnapshot {
   memoryClockMhz: Metric<number>;
   powerWatts: Metric<number>;
   fanPercent: Metric<number>;
+  /** Driver-reported thermal slowdown (NVIDIA only); null when unknown. */
+  thermalThrottling: boolean | null;
 }
 
 export interface AdapterSnapshot {
@@ -106,10 +110,15 @@ export interface ProcessInfo {
   /** Unix epoch seconds */
   startTime: number;
   exe: string | null;
+  /** Network bytes/s; null without per-process network data (needs administrator rights). */
+  netRxBytesPerSec: number | null;
+  netTxBytesPerSec: number | null;
 }
 
 export interface ProcessesSnapshot {
   processes: ProcessInfo[];
+  /** Per-process network traffic is being measured. */
+  netPerProcess: boolean;
   sampledAt: number;
 }
 
@@ -174,6 +183,8 @@ export interface HardwareInfo {
   motherboard: BoardInfo;
   system: BoardInfo;
   gpus: { model: string | null; vendor: string | null; vramTotalBytes: number | null }[];
+  /** "Name · driver version" per display adapter. */
+  gpuDrivers: string[];
   networkAdapters: { name: string; mac: string }[];
 }
 
@@ -218,3 +229,36 @@ export interface StartupApp {
 }
 
 export type Priority = "idle" | "below_normal" | "normal" | "above_normal" | "high";
+
+/** Mirror of src-tauri/src/session.rs `GameSession`. */
+export interface GameSession {
+  process: string;
+  startedAt: number;
+  endedAt: number;
+  avgFps: number | null;
+  low1Fps: number | null;
+  cpuMaxTempC: number | null;
+  gpuMaxTempC: number | null;
+}
+
+/** Mirror of src-tauri/src/cleanup.rs. */
+export interface FolderEntry {
+  name: string;
+  path: string;
+  bytes: number;
+  isDir: boolean;
+}
+
+export interface FolderScan {
+  path: string;
+  parent: string | null;
+  totalBytes: number;
+  entries: FolderEntry[];
+}
+
+export interface CleanupTarget {
+  id: string;
+  label: string;
+  hint: string;
+  bytes: number;
+}

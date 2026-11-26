@@ -9,6 +9,14 @@
   color-scheme: dark;
 }
 
+:root[data-theme="light"] {
+  @each $name, $value in $palette-light {
+    --color-#{$name}: #{$value};
+  }
+
+  color-scheme: light;
+}
+
 body {
   background: var(--color-bg-primary);
   color: var(--color-text-primary);

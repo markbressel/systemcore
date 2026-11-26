@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import logo from "../../assets/logo.png";
 import { Gauge } from "../../components/metrics/Gauge";
+import { t } from "../../lib/i18n";
 import { useTelemetry } from "../../stores/telemetry";
 import { ignitionAt, STATUS_TEXT, TIMELINE } from "./ignition";
 
@@ -8,7 +9,7 @@ const REDUCED_MOTION_MS = 900;
 
 /** Startup screen: logo, name and the two main dials doing an ignition sweep before live readings. */
 export function IgnitionSplash({ onDone }: { onDone: () => void }) {
-  const [t, setT] = useState(0);
+  const [time, setTime] = useState(0);
   const reduced = useRef(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false);
   const { system } = useTelemetry();
 
@@ -18,14 +19,14 @@ export function IgnitionSplash({ onDone }: { onDone: () => void }) {
     const tick = (now: number) => {
       const elapsed = now - start;
       // Reduced motion: no sweep, just a short static intro.
-      setT(reduced.current ? (elapsed < REDUCED_MOTION_MS ? TIMELINE.sweepDown : TIMELINE.exit) : elapsed);
+      setTime(reduced.current ? (elapsed < REDUCED_MOTION_MS ? TIMELINE.sweepDown : TIMELINE.exit) : elapsed);
       if (elapsed < (reduced.current ? REDUCED_MOTION_MS : TIMELINE.exit)) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  const { phase, sweep } = ignitionAt(t);
+  const { phase, sweep } = ignitionAt(time);
 
   useEffect(() => {
     if (phase === "done") onDone();
@@ -43,7 +44,7 @@ export function IgnitionSplash({ onDone }: { onDone: () => void }) {
   const value = (m: typeof cpu) => (sweep != null ? sweep : live(m));
 
   return (
-    <div className={`ignition ignition--${phase}`} onClick={onDone} role="dialog" aria-label="SystemCore is starting">
+    <div className={`ignition ignition--${phase}`} onClick={onDone} role="dialog" aria-label={t("SystemCore is starting")}>
       <div className="ignition__brand">
         <img className="ignition__logo" src={logo} alt="" />
         <div className="ignition__wordmark">
@@ -52,15 +53,15 @@ export function IgnitionSplash({ onDone }: { onDone: () => void }) {
       </div>
 
       <div className="ignition__dials">
-        <Gauge value={value(cpu)} label="CPU Usage" smooth={sweep == null} missingText="Measuring…" />
-        <Gauge value={value(gpu)} label="GPU Usage" smooth={sweep == null} missingText="Measuring…" />
+        <Gauge value={value(cpu)} label={t("CPU Usage")} smooth={sweep == null} missingText={t("Measuring…")} />
+        <Gauge value={value(gpu)} label={t("GPU Usage")} smooth={sweep == null} missingText={t("Measuring…")} />
       </div>
 
       <div className="ignition__status" aria-live="polite">
         <span className="ignition__status-dot" aria-hidden="true" />
-        {STATUS_TEXT[phase]}
+        {t(STATUS_TEXT[phase])}
       </div>
-      <div className="ignition__hint">Click or press Esc to skip</div>
+      <div className="ignition__hint">{t("Click or press Esc to skip")}</div>
     </div>
   );
 }

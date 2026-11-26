@@ -65,3 +65,6 @@ export const useUpdate = () =>
     },
     () => state,
   );
+
+// Dev only: module state (subscriptions, timers) cannot be hot-swapped, so reload the page instead.
+if (import.meta.hot) import.meta.hot.accept(() => location.reload());

@@ -1,14 +1,16 @@
 import { disable as disableAutostart, enable as enableAutostart, isEnabled as autostartEnabled } from "@tauri-apps/plugin-autostart";
-import { BellRing, Gamepad2, PictureInPicture2, Power, ShieldCheck } from "lucide-react";
+import { BellRing, Gamepad2, Palette, PictureInPicture2, Power, ShieldCheck } from "lucide-react";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { PageContainer } from "../../components/layout/PageContainer";
-import { toggleOverlayWindow, updateOverlay, updateSettings, useOverlayOpen, useSettings, type AlertSettings, type OverlayRow } from "../../stores/settings";
+import { toggleOverlayWindow, setAppLanguage, updateOverlay, updateSettings, useOverlayOpen, useSettings, type AlertSettings, type OverlayRow, type Theme } from "../../stores/settings";
 import { isElevated, restartAsAdmin } from "../../lib/tauri";
 import { CORNERS } from "../overlay/placement";
+import { SettingsDial } from "./SettingsDial";
+import { t } from "../../lib/i18n";
 
 function Switch({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
   return (
-    <button type="button" role="switch" aria-checked={checked} aria-label={label} disabled={disabled} className="switch" onClick={() => onChange(!checked)}>
+    <button type="button" role="switch" aria-checked={checked} aria-label={t(label)} disabled={disabled} className="switch" onClick={() => onChange(!checked)}>
       <span className="switch__thumb" />
     </button>
   );
@@ -18,8 +20,8 @@ function SettingRow({ title, hint, control, disabled }: { title: string; hint: s
   return (
     <div className={`setting${disabled ? " setting--disabled" : ""}`}>
       <div className="setting__text">
-        <div className="setting__title">{title}</div>
-        <div className="setting__hint">{hint}</div>
+        <div className="setting__title">{t(title)}</div>
+        <div className="setting__hint">{t(hint)}</div>
       </div>
       <div className="setting__control">{control}</div>
     </div>
@@ -31,7 +33,7 @@ function Section({ icon, title, children }: { icon: ReactNode; title: string; ch
     <section className="panel settings">
       <div className="panel__header">
         <h2 className="panel__title">
-          {icon} {title}
+          {icon} {t(title)}
         </h2>
       </div>
       {children}
@@ -44,7 +46,7 @@ function Check({ label, checked, onChange, disabled }: { label: string; checked:
   return (
     <label className="checkbox" htmlFor={id}>
       <input id={id} type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
-      {label}
+      {t(label)}
     </label>
   );
 }
@@ -54,7 +56,7 @@ function Limit({ label, unit, value, min, max, disabled, onChange }: { label: st
     <label className="number-field">
       <input
         type="number"
-        aria-label={label}
+        aria-label={t(label)}
         min={min}
         max={max}
         // Commit on blur/Enter, not per keystroke, so typing "85" doesn't pass through a clamped "8".
@@ -84,10 +86,37 @@ const ROWS: { id: OverlayRow; label: string }[] = [
   { id: "gpu", label: "GPU" },
   { id: "ram", label: "RAM" },
   { id: "net", label: "Network" },
+  { id: "limit", label: "Bottleneck" },
+];
+
+const TABS = [
+  { id: "gaming", label: "Gaming", icon: Gamepad2 },
+  { id: "overlay", label: "Overlay", icon: PictureInPicture2 },
+  { id: "startup", label: "Startup & tray", icon: Power },
+  { id: "alerts", label: "Alerts", icon: BellRing },
+  { id: "appearance", label: "Appearance", icon: Palette },
+] as const;
+type SettingsTab = (typeof TABS)[number]["id"];
+
+const ACCENTS: { color: string | null; label: string }[] = [
+  { color: null, label: "Orange (default)" },
+  { color: "#ef4444", label: "Red" },
+  { color: "#ec4899", label: "Pink" },
+  { color: "#a855f7", label: "Purple" },
+  { color: "#3b82f6", label: "Blue" },
+  { color: "#06b6d4", label: "Cyan" },
+  { color: "#22c55e", label: "Green" },
+  { color: "#eab308", label: "Yellow" },
+];
+
+const THEMES: { id: Theme; label: string }[] = [
+  { id: "dark", label: "Dark" },
+  { id: "light", label: "Light" },
 ];
 
 export function SettingsPage() {
-  const { overlay: o, startup, alerts } = useSettings();
+  const { overlay: o, startup, alerts, appearance } = useSettings();
+  const [tab, setTab] = useState<SettingsTab>("gaming");
   const open = useOverlayOpen();
   // Autostart lives in the Windows registry, not in our settings; read it back after each change.
   const [autostart, setAutostart] = useState<boolean | null>(null);
@@ -110,7 +139,16 @@ export function SettingsPage() {
   }, []);
 
   return (
-    <PageContainer title="Settings" subtitle="Saved on this PC. Changes apply immediately.">
+    <PageContainer
+      title={t("Settings")}
+      subtitle={t("Saved on this PC. Changes apply immediately.")}
+    >
+      <div className="settings-layout">
+        <div className="settings-layout__dial">
+          <SettingsDial items={TABS} value={tab} onChange={setTab} />
+        </div>
+        <div className="settings-layout__content">
+      {tab === "gaming" && (
       <Section icon={<Gamepad2 className="panel__icon" aria-hidden="true" />} title="Gaming">
         <SettingRow
           title="FPS measurement"
@@ -122,14 +160,14 @@ export function SettingsPage() {
           control={
             elevated ? (
               <span className="setting__status">
-                <ShieldCheck aria-hidden="true" /> Running as administrator
+                <ShieldCheck aria-hidden="true" /> {t("Running as administrator")}
               </span>
             ) : (
               <div className="setting__stack">
                 <button type="button" className="button button--primary" onClick={() => restartAsAdmin().catch((e) => setElevateError(String(e)))}>
-                  Restart as administrator
+                  {t("Restart as administrator")}
                 </button>
-                {elevateError && <span className="setting__error">{elevateError}</span>}
+                {elevateError && <span className="setting__error">{t(elevateError)}</span>}
               </div>
             )
           }
@@ -139,8 +177,16 @@ export function SettingsPage() {
           hint="Opens the overlay when an app goes fullscreen (or borderless fullscreen) and closes it when you leave. Fullscreen videos count too."
           control={<Switch label="Show overlay in games" checked={o.autoShow} onChange={(autoShow) => updateOverlay({ autoShow })} />}
         />
+        <SettingRow
+          title="Game mode"
+          hint="While a fullscreen app is in front, give it high CPU priority and switch Windows to the High performance power plan. Both go back when you leave."
+          control={<Switch label="Game mode" checked={o.gameMode} onChange={(gameMode) => updateOverlay({ gameMode })} />}
+        />
       </Section>
 
+      )}
+
+      {tab === "overlay" && (
       <Section icon={<PictureInPicture2 className="panel__icon" aria-hidden="true" />} title="Overlay">
         <SettingRow
           title="Show overlay"
@@ -176,7 +222,7 @@ export function SettingsPage() {
                 min={75}
                 max={150}
                 step={5}
-                aria-label="Overlay size"
+                aria-label={t("Overlay size")}
                 value={Math.round(o.scale * 100)}
                 onChange={(e) => updateOverlay({ scale: Number(e.target.value) / 100 })}
               />
@@ -190,15 +236,15 @@ export function SettingsPage() {
           hint={o.freeMove ? "Turn off free positioning to pin the overlay to a corner." : "Corner of the screen the overlay sticks to."}
           disabled={o.freeMove}
           control={
-            <div className="corner-picker" role="radiogroup" aria-label="Overlay corner">
+            <div className="corner-picker" role="radiogroup" aria-label={t("Overlay corner")}>
               {CORNERS.map((c) => (
                 <button
                   key={c.id}
                   type="button"
                   role="radio"
                   aria-checked={o.corner === c.id}
-                  aria-label={c.label}
-                  title={c.label}
+                  aria-label={t(c.label)}
+                  title={t(c.label)}
                   disabled={o.freeMove}
                   className={`corner-picker__spot corner-picker__spot--${c.id}`}
                   onClick={() => updateOverlay({ corner: c.id })}
@@ -222,6 +268,9 @@ export function SettingsPage() {
         />
       </Section>
 
+      )}
+
+      {tab === "startup" && (
       <Section icon={<Power className="panel__icon" aria-hidden="true" />} title="Startup & tray">
         <SettingRow
           title="Start with Windows"
@@ -246,6 +295,9 @@ export function SettingsPage() {
         />
       </Section>
 
+      )}
+
+      {tab === "alerts" && (
       <Section icon={<BellRing className="panel__icon" aria-hidden="true" />} title="Alerts">
         <SettingRow
           title="Windows notifications"
@@ -271,6 +323,16 @@ export function SettingsPage() {
           control={<Limit label="Memory usage limit" unit="%" min={50} max={99} value={alerts.ramPercent} disabled={!alerts.enabled} onChange={(ramPercent) => setAlert({ ramPercent })} />}
         />
         <SettingRow
+          title="Overheating"
+          hint="Notify when the CPU or GPU slows itself down because it is too hot."
+          control={<Switch label="Overheating alerts" checked={alerts.throttleEnabled} onChange={(throttleEnabled) => setAlert({ throttleEnabled })} />}
+        />
+        <SettingRow
+          title="Memory leaks"
+          hint="Notify when a program's memory keeps growing for hours without ever going down."
+          control={<Switch label="Memory leak alerts" checked={alerts.leakEnabled} onChange={(leakEnabled) => setAlert({ leakEnabled })} />}
+        />
+        <SettingRow
           title="Heavy programs"
           hint="Notify when one program keeps using a lot of CPU or memory, and say which one."
           control={<Switch label="Heavy program alerts" checked={alerts.hogEnabled} onChange={(hogEnabled) => setAlert({ hogEnabled })} />}
@@ -294,6 +356,86 @@ export function SettingsPage() {
           control={<Limit label="Minutes above the limit" unit="min" min={1} max={60} value={alerts.hogMinutes} disabled={!alerts.hogEnabled} onChange={(hogMinutes) => setAlert({ hogMinutes })} />}
         />
       </Section>
+      )}
+
+      {tab === "appearance" && (
+        <Section icon={<Palette className="panel__icon" aria-hidden="true" />} title="Appearance">
+          <SettingRow
+            title="Theme"
+            hint="Colors of the main window. The overlay stays dark so it reads well over games."
+            control={
+              <div className="tabs" role="radiogroup" aria-label={t("Theme")}>
+                {THEMES.map((th) => (
+                  <button
+                    key={th.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={appearance.theme === th.id}
+                    className={`tabs__tab${appearance.theme === th.id ? " tabs__tab--active" : ""}`}
+                    onClick={() => updateSettings("appearance", { theme: th.id })}
+                  >
+                    {t(th.label)}
+                  </button>
+                ))}
+              </div>
+            }
+          />
+          <SettingRow
+            title="Language"
+            hint="Language of the app and its notifications. The windows reload to switch."
+            control={
+              <div className="tabs" role="radiogroup" aria-label={t("Language")}>
+                {([["en", "English"], ["hu", "Magyar"]] as const).map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="radio"
+                    aria-checked={appearance.language === id}
+                    className={`tabs__tab${appearance.language === id ? " tabs__tab--active" : ""}`}
+                    onClick={() => appearance.language !== id && setAppLanguage(id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            }
+          />
+          <SettingRow
+            title="Accent color"
+            hint="Color of highlights, buttons, dials and the active menu. Pick a preset or any color."
+            control={
+              <div className="accent-picker" role="radiogroup" aria-label={t("Accent color")}>
+                {ACCENTS.map((a) => (
+                  <button
+                    key={a.label}
+                    type="button"
+                    role="radio"
+                    aria-checked={appearance.accent === a.color}
+                    aria-label={t(a.label)}
+                    title={t(a.label)}
+                    className="accent-picker__swatch"
+                    style={{ background: a.color ?? "#f07832" }}
+                    onClick={() => updateSettings("appearance", { accent: a.color })}
+                  />
+                ))}
+                <label
+                  className={`accent-picker__custom${ACCENTS.some((a) => a.color === appearance.accent) ? "" : " accent-picker__custom--active"}`}
+                  title={t("Any color")}
+                >
+                  <input
+                    type="color"
+                    aria-label={t("Custom accent color")}
+                    value={appearance.accent ?? "#f07832"}
+                    onChange={(e) => updateSettings("appearance", { accent: e.target.value })}
+                  />
+                </label>
+              </div>
+            }
+          />
+        </Section>
+      )}
+        </div>
+      </div>
     </PageContainer>
   );
 }

@@ -279,3 +279,59 @@
     height: 16px;
   }
 }
+
+// PC health card: score dial with the reasons beside it.
+.health {
+  align-items: center;
+
+  &__text {
+    min-width: 0;
+  }
+
+  &__summary {
+    color: var(--color-text-primary);
+    font-size: $font-md;
+    font-weight: $weight-semibold;
+  }
+
+  &__issues {
+    margin-top: $space-2;
+    padding-left: $space-4;
+    color: var(--color-text-secondary);
+    font-size: $font-sm;
+    list-style: disc;
+  }
+}
+
+// "Why is my PC slow?" card.
+.slow-check {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: $space-4;
+
+  &__status {
+    color: var(--color-accent);
+    font-weight: $weight-semibold;
+  }
+
+  &__ok {
+    color: var(--color-success);
+    font-weight: $weight-semibold;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: $space-2;
+  }
+
+  &__item {
+    padding-left: $space-3;
+    border-left: 3px solid var(--color-info);
+    color: var(--color-text-primary);
+
+    &--2 { border-color: var(--color-warning); }
+    &--3 { border-color: var(--color-danger); }
+  }
+}

@@ -5,6 +5,7 @@ import { HardwareCard } from "../../components/hardware/HardwareCard";
 import { PageContainer } from "../../components/layout/PageContainer";
 import { Gauge } from "../../components/metrics/Gauge";
 import { useSmoothValue } from "../../hooks/useSmoothValue";
+import { t } from "../../lib/i18n";
 import { runSpeedTest, stopSpeedTest, useSpeedTest } from "../../stores/speedtest";
 import type { SpeedPhase } from "../../types/telemetry";
 import { formatMbps, SPEED_SCALE } from "./speedScale";
@@ -40,7 +41,7 @@ function ResultTile({ icon: Icon, label, value, unit, format, active, sub, tone 
     <div className={`speed-tile speed-tile--${tone}${active ? " speed-tile--active" : ""}`}>
       <div className="speed-tile__head">
         <Icon className="speed-tile__icon" aria-hidden="true" />
-        {label}
+        {t(label)}
       </div>
       <div className="speed-tile__value">
         {value == null ? "—" : format(value)}
@@ -62,17 +63,17 @@ export function SpeedTestPage() {
 
   return (
     <PageContainer
-      title="Speed Test"
-      subtitle="Ping, download and upload measured against Cloudflare's global network (speed.cloudflare.com). Runs only when you start it."
+      title={t("Speed Test")}
+      subtitle={t("Ping, download and upload measured against Cloudflare's global network (speed.cloudflare.com). Runs only when you start it.")}
     >
-      {error && <ErrorState message={error} />}
+      {error && <ErrorState message={t(error)} />}
 
       <section className="speedtest panel">
         <div className="speedtest__dial">
           <Gauge
             value={running || phase === "done" ? dialValue : null}
-            label={phase ? DIAL_LABEL[phase] : "Ready"}
-            missingText={running ? "Measuring…" : "Press start"}
+            label={t(phase ? DIAL_LABEL[phase] : "Ready")}
+            missingText={running ? t("Measuring…") : t("Press start")}
             scale={SPEED_SCALE}
             unit="Mbps"
             formatValue={formatMbps}
@@ -80,13 +81,13 @@ export function SpeedTestPage() {
         </div>
 
         <div className="speedtest__side">
-          <ol className="speedtest__steps" aria-label="Test progress">
+          <ol className="speedtest__steps" aria-label={t("Test progress")}>
             {STEPS.map((s) => {
               const i = ORDER.indexOf(s.phase);
               const state = stepIndex > i ? "done" : stepIndex === i ? "active" : "pending";
               return (
                 <li key={s.phase} className={`speedtest__step speedtest__step--${state}`}>
-                  {s.label}
+                  {t(s.label)}
                 </li>
               );
             })}
@@ -97,16 +98,17 @@ export function SpeedTestPage() {
 
           {running ? (
             <button type="button" className="speedtest__go speedtest__go--stop" onClick={() => void stopSpeedTest()}>
-              <Square className="speedtest__go-icon" aria-hidden="true" /> Cancel
+              <Square className="speedtest__go-icon" aria-hidden="true" /> {t("Cancel")}
             </button>
           ) : (
             <button type="button" className="speedtest__go" onClick={() => void runSpeedTest()}>
-              <Play className="speedtest__go-icon" aria-hidden="true" /> {phase === "done" ? "Run again" : "Start test"}
+              <Play className="speedtest__go-icon" aria-hidden="true" /> {phase === "done" ? t("Run again") : t("Start test")}
             </button>
           )}
 
           <p className="page__note">
-            {live?.server ? `Server: Cloudflare · ${live.server} · ` : ""}About 10 s per direction. On fast connections a test can use several hundred MB of data.
+            {live?.server ? `${t("Server: Cloudflare · {server}", { server: live.server })} · ` : ""}
+            {t("About 10 s per direction. On fast connections a test can use several hundred MB of data.")}
           </p>
         </div>
       </section>
@@ -120,7 +122,7 @@ export function SpeedTestPage() {
           value={live?.pingMs ?? null}
           format={(v) => v.toFixed(0)}
           active={phase === "ping" || phase === "connecting"}
-          sub={live?.jitterMs != null ? `Jitter ${live.jitterMs.toFixed(1)} ms` : "Round-trip time"}
+          sub={live?.jitterMs != null ? t("Jitter {ms} ms", { ms: live.jitterMs.toFixed(1) }) : t("Round-trip time")}
         />
         <ResultTile
           tone="download"
@@ -130,7 +132,7 @@ export function SpeedTestPage() {
           value={live?.downloadMbps ?? null}
           format={formatMbps}
           active={phase === "download"}
-          sub={phase === "download" ? "Live" : phase === "upload" || phase === "done" ? "Final" : "6 parallel streams"}
+          sub={phase === "download" ? t("Live") : phase === "upload" || phase === "done" ? t("Final") : t("6 parallel streams")}
         />
         <ResultTile
           tone="upload"
@@ -140,22 +142,22 @@ export function SpeedTestPage() {
           value={live?.uploadMbps ?? null}
           format={formatMbps}
           active={phase === "upload"}
-          sub={phase === "upload" ? "Live" : phase === "done" ? "Final" : "4 parallel streams"}
+          sub={phase === "upload" ? t("Live") : phase === "done" ? t("Final") : t("4 parallel streams")}
         />
       </div>
 
       {history.length > 0 && (
-        <HardwareCard title="Results this session" icon={History}>
+        <HardwareCard title={t("Results this session")} icon={History}>
           <div className="table-scroll">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th><span className="data-table__heading">Time</span></th>
-                  <th className="is-numeric"><span className="data-table__heading">Ping</span></th>
-                  <th className="is-numeric"><span className="data-table__heading">Jitter</span></th>
-                  <th className="is-numeric"><span className="data-table__heading">Download</span></th>
-                  <th className="is-numeric"><span className="data-table__heading">Upload</span></th>
-                  <th className="is-numeric"><span className="data-table__heading">Server</span></th>
+                  <th><span className="data-table__heading">{t("Time")}</span></th>
+                  <th className="is-numeric"><span className="data-table__heading">{t("Ping")}</span></th>
+                  <th className="is-numeric"><span className="data-table__heading">{t("Jitter")}</span></th>
+                  <th className="is-numeric"><span className="data-table__heading">{t("Download")}</span></th>
+                  <th className="is-numeric"><span className="data-table__heading">{t("Upload")}</span></th>
+                  <th className="is-numeric"><span className="data-table__heading">{t("Server")}</span></th>
                 </tr>
               </thead>
               <tbody>

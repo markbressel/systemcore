@@ -15,6 +15,8 @@ pub struct HardwareInfo {
     pub motherboard: BoardInfo,
     pub system: BoardInfo,
     pub gpus: Vec<GpuInfo>,
+    /// "Name · driver version" per display adapter.
+    pub gpu_drivers: Vec<String>,
     pub network_adapters: Vec<AdapterInfo>,
 }
 
@@ -84,6 +86,7 @@ pub fn collect() -> HardwareInfo {
         },
         memory_total_bytes: sys.as_ref().map(|s| s.total_memory()).filter(|m| *m > 0),
         memory_modules: wmi_sources::memory_modules(),
+        gpu_drivers: wmi_sources::gpu_drivers(),
         os: OsInfo {
             name: System::name().ok(),
             version: System::os_version().ok(),

@@ -1,6 +1,7 @@
 import { useEffect, useState, type PointerEvent } from "react";
 import { HISTORY_LENGTH } from "../../stores/telemetry";
 import { StatusBadge } from "../feedback/StatusBadge";
+import { t } from "../../lib/i18n";
 
 export interface Series {
   data: (number | null)[];
@@ -25,7 +26,7 @@ interface Props {
   agoLabel?: (n: number) => string;
 }
 
-const liveAgo = (n: number) => (n === 0 ? "now" : `${n}s ago`);
+const liveAgo = (n: number) => (n === 0 ? t("now") : t("{n}s ago", { n }));
 
 // Gaps (null) break the line instead of being drawn as zero.
 function paths(data: (number | null)[], max: number, length: number) {
@@ -59,7 +60,7 @@ export function PerformanceChart({ title, series, format, max, size = "md", stal
   const interactive = size !== "sm";
   const peak = Math.max(1, ...series.flatMap((s) => s.data.filter((v): v is number => v != null)));
   const scale = max ?? peak * 1.15;
-  const summary = series.map((s) => `${s.label} ${s.data.at(-1) == null ? "not available" : format(s.data.at(-1)!)}`).join(", ");
+  const summary = series.map((s) => `${s.label} ${s.data.at(-1) == null ? t("not available") : format(s.data.at(-1)!)}`).join(", ");
 
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -89,7 +90,7 @@ export function PerformanceChart({ title, series, format, max, size = "md", stal
         onPointerMove={interactive ? onMove : undefined}
         onPointerLeave={interactive ? () => setHover(null) : undefined}
       >
-        <svg viewBox={`0 0 ${LAST} 100`} preserveAspectRatio="none" role="img" aria-label={`${title ?? "History"}, ${startLabel ?? `last ${length} seconds`}. Latest: ${summary}`}>
+        <svg viewBox={`0 0 ${LAST} 100`} preserveAspectRatio="none" role="img" aria-label={`${title ?? t("History")}, ${startLabel ?? t("last {length} seconds", { length })}. ${t("Latest:")} ${summary}`}>
           {[25, 50, 75].map((y) => (
             <line key={y} x1="0" x2={LAST} y1={y} y2={y} className="chart__grid" />
           ))}
@@ -108,12 +109,12 @@ export function PerformanceChart({ title, series, format, max, size = "md", stal
         {size !== "sm" && (
           <>
             <span className="chart__axis chart__axis--start">{startLabel ?? `−${length}s`}</span>
-            <span className="chart__axis chart__axis--end">now</span>
+            <span className="chart__axis chart__axis--end">{t("now")}</span>
           </>
         )}
         {stale && (
           <span className="chart__stale">
-            <StatusBadge tone="warning">Stale</StatusBadge>
+            <StatusBadge tone="warning">{t("Stale")}</StatusBadge>
           </span>
         )}
         {hover != null && (
@@ -126,7 +127,7 @@ export function PerformanceChart({ title, series, format, max, size = "md", stal
                 return (
                   <div key={s.label} className="chart__tooltip-row">
                     <span>{s.label}</span>
-                    <strong>{v == null ? "n/a" : format(v)}</strong>
+                    <strong>{v == null ? t("n/a") : format(v)}</strong>
                   </div>
                 );
               })}

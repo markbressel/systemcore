@@ -198,3 +198,144 @@
     }
   }
 }
+
+// Dial menu on the left, the chosen section on the right; stacked on narrow windows.
+.settings-layout {
+  display: grid;
+  grid-template-columns: 290px minmax(0, 1fr);
+  gap: $space-6;
+  align-items: start;
+
+  @include below($bp-compact) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  &__dial {
+    position: sticky;
+    top: 0;
+  }
+
+  &__content {
+    min-width: 0;
+  }
+}
+
+.settings-dial {
+  &__item {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    // Center the round icon on its dial position; the label hangs below it.
+    transform: translate(-50%, -21px);
+    color: var(--color-text-secondary);
+
+    &:hover {
+      color: var(--color-text-primary);
+    }
+
+    &:focus-visible {
+      outline: none;
+
+      .settings-dial__icon {
+        @include focus-ring;
+      }
+    }
+  }
+
+  &__icon {
+    @include hover-transition(color, background, border-color, box-shadow);
+    @include flex-center;
+    width: 42px;
+    height: 42px;
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+    background: var(--color-surface);
+
+    svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
+
+  &__item:hover &__icon {
+    border-color: var(--color-accent);
+  }
+
+  &__item--active &__icon,
+  &__item--active:hover &__icon {
+    border-color: var(--color-accent);
+    background: var(--color-accent);
+    color: var(--color-text-on-accent);
+    box-shadow: 0 0 14px var(--color-accent-soft);
+  }
+
+  &__label {
+    font-family: $font-family-display;
+    font-size: 10px;
+    font-weight: $weight-semibold;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  &__item--active &__label {
+    color: var(--color-accent);
+  }
+}
+
+// Accent presets as round swatches, plus the native color picker for any color.
+.accent-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: $space-2;
+  max-width: 260px;
+
+  &__swatch,
+  &__custom {
+    @include hover-transition(transform, box-shadow);
+    width: 26px;
+    height: 26px;
+    border: 2px solid var(--color-surface);
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px var(--color-border);
+
+    &:hover {
+      transform: scale(1.1);
+    }
+  }
+
+  &__swatch {
+    &[aria-checked="true"] {
+      box-shadow: 0 0 0 2px var(--color-text-primary);
+    }
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+  }
+
+  &__custom {
+    position: relative;
+    overflow: hidden;
+    background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+    cursor: pointer;
+
+    input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    &--active {
+      box-shadow: 0 0 0 2px var(--color-text-primary);
+    }
+
+    &:focus-within {
+      @include focus-ring;
+    }
+  }
+}

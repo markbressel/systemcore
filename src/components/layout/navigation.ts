@@ -1,4 +1,4 @@
-import { Activity, CircuitBoard, Gauge, HardDrive, History, LayoutDashboard, List, Network, Rocket, Settings, type LucideIcon } from "lucide-react";
+import { Activity, CircuitBoard, Flame, Gauge, HardDrive, History, LayoutDashboard, List, Network, Rocket, Settings, type LucideIcon } from "lucide-react";
 
 export interface NavPage {
   id: PageId;
@@ -6,7 +6,7 @@ export interface NavPage {
   icon: LucideIcon;
 }
 
-export type PageId = "overview" | "performance" | "history" | "processes" | "hardware" | "storage" | "network" | "speedtest" | "startup" | "settings";
+export type PageId = "overview" | "performance" | "history" | "processes" | "hardware" | "storage" | "network" | "speedtest" | "benchmark" | "startup" | "settings";
 
 export const NAV_SECTIONS: { title: string; pages: NavPage[] }[] = [
   {
@@ -30,6 +30,7 @@ export const NAV_SECTIONS: { title: string; pages: NavPage[] }[] = [
     title: "Tools",
     pages: [
       { id: "speedtest", label: "Speed Test", icon: Gauge },
+      { id: "benchmark", label: "Benchmark", icon: Flame },
       { id: "startup", label: "Startup Apps", icon: Rocket },
     ],
   },

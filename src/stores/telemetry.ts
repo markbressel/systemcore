@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n";
 // Single app-wide telemetry store. One backend subscription feeds every page;
 // components never poll on their own.
 import { useSyncExternalStore } from "react";
@@ -63,18 +64,21 @@ export function startTelemetry() {
     processes: (processes) => set({ processes }),
     disks: (disks) => set({ disks }),
     error: (error) => set({ error }),
-  }).catch((e) => set({ error: `Cannot subscribe to telemetry: ${e}` }));
+  }).catch((e) => set({ error: t("Cannot subscribe to telemetry: {error}", { error: String(e) }) }));
   getLatest()
     .then((l) => {
       set({ processes: state.processes ?? l.processes, disks: state.disks ?? l.disks, error: l.error });
       if (!state.system && l.system) onSystem(l.system);
     })
-    .catch((e) => set({ error: `Backend unavailable: ${e}` }));
+    .catch((e) => set({ error: t("Backend unavailable: {error}", { error: String(e) }) }));
   setInterval(() => {
     const stale = !!state.system && Date.now() - state.system.sampledAt > STALE_AFTER_MS;
     if (stale !== state.stale) set({ stale });
   }, 1000);
 }
+
+/** Current state outside React (e.g. for stores that sample it on a timer). */
+export const telemetrySnapshot = () => state;
 
 export function useTelemetry(): TelemetryState {
   return useSyncExternalStore(
@@ -85,3 +89,6 @@ export function useTelemetry(): TelemetryState {
     () => state,
   );
 }
+
+// Dev only: module state (subscriptions, timers) cannot be hot-swapped, so reload the page instead.
+if (import.meta.hot) import.meta.hot.accept(() => location.reload());

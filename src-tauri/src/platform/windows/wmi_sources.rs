@@ -128,3 +128,18 @@ pub fn memory_modules() -> Vec<MemoryModule> {
         })
         .collect()
 }
+
+/// "GPU name · driver version" for every display adapter (Win32_VideoController), for change tracking.
+pub fn gpu_drivers() -> Vec<String> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "PascalCase")]
+    struct Controller {
+        name: Option<String>,
+        driver_version: Option<String>,
+    }
+    let Ok(con) = WMIConnection::new() else { return vec![] };
+    let rows: Vec<Controller> = con.raw_query("SELECT Name, DriverVersion FROM Win32_VideoController").unwrap_or_default();
+    rows.into_iter()
+        .filter_map(|c| Some(format!("{} · {}", c.name?.trim(), c.driver_version?.trim())))
+        .collect()
+}

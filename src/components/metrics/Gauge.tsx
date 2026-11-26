@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { useSmoothValue } from "../../hooks/useSmoothValue";
+import { t } from "../../lib/i18n";
 
 interface Props {
   /** Reading (0–100 % by default), or null when unavailable (no needle is drawn — never a fake 0). */
@@ -35,7 +36,7 @@ function sector(v: number) {
 
 const TICKS = Array.from({ length: 50 }, (_, i) => i * 2);
 
-export function Gauge({ value, label, missingText = "Measuring…", size = "lg", smooth = true, scale, unit = "%", formatValue }: Props) {
+export function Gauge({ value, label, missingText = t("Measuring…"), size = "lg", smooth = true, scale, unit = "%", formatValue }: Props) {
   const id = useId();
   const clamp = (x: number) => Math.max(0, Math.min(100, x));
   // `target` is the dial position (0–100); `value` stays the real reading for the printed number.

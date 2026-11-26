@@ -1,6 +1,8 @@
 //! Windows-only adapters for data sysinfo does not provide.
 
 pub mod memory;
+pub mod net;
+pub mod power;
 pub mod nvidia;
 pub mod fps;
 pub mod pdh;

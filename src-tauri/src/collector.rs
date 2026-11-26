@@ -4,7 +4,7 @@
 use crate::domain::*;
 use crate::platform::windows as win;
 use crate::history::{self, SharedHistory};
-use crate::prefs::{Alerts, HogWatch, ProcSample, SharedPrefs};
+use crate::prefs::{Alerts, HogWatch, LeakWatch, ProcSample, SharedPrefs};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -26,6 +26,9 @@ const DISK_EVERY: u64 = 2;
 const TEMP_EVERY: u64 = 5;
 
 const HEALTH_EVERY: u64 = 60;
+const LEAK_EVERY: u64 = 300;
+/// Minimum gap between two "too hot, slowing down" notifications for the same device.
+const THROTTLE_NOTE_GAP: u64 = 600;
 
 const SRC_SYS: &str = "sysinfo";
 const SRC_FREQ: &str = "PDH Processor Information (Task Manager method)";
@@ -59,6 +62,14 @@ fn ping() -> Option<f32> {
     let t = Instant::now();
     std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(1500)).ok()?;
     Some(t.elapsed().as_secs_f32() * 1000.0)
+}
+
+/// CPU thermal throttling, inferred: Windows has no direct flag, so a hot CPU that runs under load
+/// below its base clock (or anything at 95 °C+, where CPUs start protecting themselves) counts.
+pub fn cpu_throttling(temp_c: Option<f32>, usage: Option<f32>, mhz: Option<u64>, base_mhz: Option<u64>) -> Option<bool> {
+    let t = temp_c?;
+    let slow = matches!((usage, mhz, base_mhz), (Some(u), Some(f), Some(b)) if u >= 50.0 && b > 0 && (f as f32) < b as f32 * 0.9);
+    Some(t >= 95.0 || (t >= 85.0 && slow))
 }
 
 /// Bytes per second from two cumulative counters.
@@ -123,6 +134,9 @@ struct Collector {
     process_samples: u64,
     peak_mhz: u64,
     fps: Option<win::fps::Fps>,
+    net: Option<win::net::NetPerProcess>,
+    net_prev: HashMap<u32, (u64, u64)>,
+    net_at: Option<Instant>,
     latency: Arc<Mutex<Option<f32>>>,
     game: GameSnapshot,
     hogs: HogWatch,
@@ -160,6 +174,9 @@ impl Collector {
                 low1_fps: idle_fps(fps.is_some(), "fps"),
             },
             fps,
+            net: win::net::NetPerProcess::start().ok(),
+            net_prev: HashMap::new(),
+            net_at: None,
             latency,
             hogs: HogWatch::default(),
         })
@@ -199,7 +216,9 @@ impl Collector {
         if let Some(f) = frequency_mhz.value {
             self.peak_mhz = self.peak_mhz.max(f);
         }
+        let thermal_throttling = cpu_throttling(self.temperature.value, usage.value, frequency_mhz.value, base);
         CpuSnapshot {
+            thermal_throttling,
             usage_percent: usage,
             per_core_percent: per_core,
             frequency_mhz,
@@ -281,6 +300,7 @@ impl Collector {
                             memory_clock_mhz: clock(n.and_then(|r| r.memory_clock_mhz)),
                             power_watts: sensor(n.and_then(|r| r.power_watts), "W"),
                             fan_percent: sensor(n.and_then(|r| r.fan_percent), "%"),
+                            thermal_throttling: n.and_then(|r| r.thermal_throttle),
                         }
                     })
                     .collect();
@@ -377,6 +397,7 @@ impl Collector {
         self.process_samples += 1;
         let cpu_ready = self.process_samples > 1;
         let n_cpu = self.sys.cpus().len();
+        let net = self.process_net_rates();
         let processes: Vec<ProcessInfo> = self
             .sys
             .processes()
@@ -390,10 +411,28 @@ impl Collector {
                 status: p.status().to_string(),
                 start_time: p.start_time(),
                 exe: p.exe().map(|e| e.to_string_lossy().into_owned()),
+                net_rx_bytes_per_sec: net.as_ref().map(|n| n.get(&p.pid().as_u32()).map_or(0.0, |r| r.0)),
+                net_tx_bytes_per_sec: net.as_ref().map(|n| n.get(&p.pid().as_u32()).map_or(0.0, |r| r.1)),
             })
             .collect();
         self.process_count = Metric::ok(processes.len(), "", SRC_SYS, now);
-        ProcessesSnapshot { processes, sampled_at: now }
+        ProcessesSnapshot { processes, net_per_process: net.is_some(), sampled_at: now }
+    }
+
+    /// (download, upload) bytes/s per process since the last call; `None` without the ETW session.
+    /// A process missing from the previous totals had no traffic then, so it counts from 0.
+    fn process_net_rates(&mut self) -> Option<HashMap<u32, (f64, f64)>> {
+        let totals = self.net.as_ref()?.totals(|pid| self.sys.process(sysinfo::Pid::from_u32(pid)).is_some());
+        let secs = self.net_at.replace(Instant::now()).map(|t| t.elapsed().as_secs_f64());
+        let rates = totals
+            .iter()
+            .filter_map(|(pid, &(rx, tx))| {
+                let (prx, ptx) = self.net_prev.get(pid).copied().unwrap_or_default();
+                Some((*pid, (rate(prx, rx, secs?)?, rate(ptx, tx, secs?)?)))
+            })
+            .collect();
+        self.net_prev = totals;
+        Some(rates)
     }
 
     fn disks(&mut self, now: u64) -> Option<DisksSnapshot> {
@@ -445,14 +484,45 @@ fn health_rank(h: &str) -> u8 {
 }
 
 /// One message per drive whose health got worse since the last check (startup counts as "was healthy").
-fn health_alerts(prev: &HashMap<String, win::wmi_sources::DiskHealth>, next: &HashMap<String, win::wmi_sources::DiskHealth>) -> Vec<String> {
+fn health_alerts(prev: &HashMap<String, win::wmi_sources::DiskHealth>, next: &HashMap<String, win::wmi_sources::DiskHealth>, hu: bool) -> Vec<String> {
     let mut out: Vec<String> = next
         .iter()
         .filter(|(letter, d)| health_rank(d.health) > prev.get(*letter).map_or(0, |p| health_rank(p.health)))
-        .map(|(letter, d)| format!("Drive {letter}: ({}) reports {}. Back up your data.", d.model.as_deref().unwrap_or("disk"), d.health))
+        .map(|(letter, d)| {
+            if hu {
+                let health = match d.health {
+                    "Healthy" => "Egészséges",
+                    "Warning" => "Figyelmeztetés",
+                    "Unhealthy" => "Hibás",
+                    h => h,
+                };
+                format!("A(z) {letter}: meghajtó ({}) állapota: {health}. Készíts biztonsági mentést!", d.model.as_deref().unwrap_or("lemez"))
+            } else {
+                format!("Drive {letter}: ({}) reports {}. Back up your data.", d.model.as_deref().unwrap_or("disk"), d.health)
+            }
+        })
         .collect();
     out.sort();
     out
+}
+
+fn session_summary(s: &crate::session::GameSession, hu: bool) -> String {
+    let mins = (s.ended_at - s.started_at) / 60_000;
+    let (played, avg, low) = if hu { ("játékidő", "átlag", "1% mélypont") } else { ("played", "avg", "1% low") };
+    let mut parts = vec![format!("{}: {played} {}h {:02}m", s.process, mins / 60, mins % 60)];
+    if let Some(f) = s.avg_fps {
+        parts.push(format!("{avg} {f:.0} FPS"));
+    }
+    if let Some(l) = s.low1_fps {
+        parts.push(format!("{low} {l:.0}"));
+    }
+    if let Some(t) = s.cpu_max_temp_c {
+        parts.push(format!("CPU max {t:.0} °C"));
+    }
+    if let Some(t) = s.gpu_max_temp_c {
+        parts.push(format!("GPU max {t:.0} °C"));
+    }
+    parts.join(" · ")
 }
 
 fn store(shared: &Shared, f: impl FnOnce(&mut Latest)) {
@@ -483,6 +553,11 @@ pub fn spawn(app: AppHandle, shared: Shared, prefs: SharedPrefs, hist: SharedHis
                 }
             };
             let mut alerts = Alerts::default();
+            let mut leaks = LeakWatch::default();
+            let mut sessions = crate::session::SessionTracker::default();
+            let mut game_mode = crate::gamemode::GameMode::default();
+            let mut game_mode_on = false;
+            let mut throttle_noted: [Option<u64>; 2] = [None; 2];
             // Set when fullscreen detection opened the overlay, so leaving fullscreen may close it again.
             let mut auto_opened = false;
             loop {
@@ -492,14 +567,16 @@ pub fn spawn(app: AppHandle, shared: Shared, prefs: SharedPrefs, hist: SharedHis
                 if c.due(MEMORY_EVERY) { c.refresh_memory(now); }
                 if c.due(GPU_EVERY) { c.refresh_gpus(now); }
                 if c.due(TEMP_EVERY) { c.refresh_temperature(now); }
+                let p_now = prefs.lock().map(|p| p.clone()).unwrap_or_default();
+                let hu = p_now.language == "hu";
+                let tr = |en: &'static str, hu_text: &'static str| if hu { hu_text } else { en };
                 if c.due(HEALTH_EVERY) {
                     let next = win::wmi_sources::disk_health();
-                    for body in health_alerts(&c.disk_health, &next) {
-                        let _ = app.notification().builder().title("SystemCore: disk health warning").body(body).show();
+                    for body in health_alerts(&c.disk_health, &next, hu) {
+                        let _ = app.notification().builder().title(tr("SystemCore: disk health warning", "SystemCore: lemezhiba-figyelmeztetés")).body(body).show();
                     }
                     c.disk_health = next;
                 }
-                let p_now = prefs.lock().map(|p| p.clone()).unwrap_or_default();
                 if c.due(PROCESS_EVERY) {
                     let p = c.processes(now);
                     let own = std::process::id();
@@ -509,8 +586,13 @@ pub fn spawn(app: AppHandle, shared: Shared, prefs: SharedPrefs, hist: SharedHis
                         .filter(|x| x.pid > 4 && x.pid != own)
                         .map(|x| ProcSample { pid: x.pid, start_time: x.start_time, name: &x.name, cpu_percent: x.cpu_percent, memory_bytes: x.memory_bytes })
                         .collect();
-                    for body in c.hogs.update(c.tick, &samples, &p_now.alerts) {
-                        let _ = app.notification().builder().title("SystemCore: heavy program").body(body).show();
+                    for body in c.hogs.update(c.tick, &samples, &p_now.alerts, hu) {
+                        let _ = app.notification().builder().title(tr("SystemCore: heavy program", "SystemCore: erőforrászabáló program")).body(body).show();
+                    }
+                    if c.due(LEAK_EVERY) {
+                        for body in leaks.update(c.tick, &samples, p_now.alerts.leak_enabled, hu) {
+                            let _ = app.notification().builder().title(tr("SystemCore: possible memory leak", "SystemCore: lehetséges memóriaszivárgás")).body(body).show();
+                        }
                     }
                     store(&shared, |l| l.processes = Some(p.clone()));
                     let _ = app.emit("telemetry:processes", p);
@@ -534,6 +616,22 @@ pub fn spawn(app: AppHandle, shared: Shared, prefs: SharedPrefs, hist: SharedHis
                     }
                 }
 
+                if p_now.game_mode && c.game.fullscreen && !game_mode_on {
+                    if let Some(pid) = c.game.pid {
+                        game_mode.enter(pid);
+                        game_mode_on = true;
+                    }
+                } else if game_mode_on && (!c.game.fullscreen || !p_now.game_mode) {
+                    game_mode.leave();
+                    game_mode_on = false;
+                }
+
+                let gpu_temp = c.gpu.value.as_ref().and_then(|g| g.first()).and_then(|g| g.temperature_c.value);
+                if let Some(s) = sessions.update(now, &c.game, c.temperature.value, gpu_temp) {
+                    let _ = app.notification().builder().title(tr("SystemCore: game session", "SystemCore: játékmenet")).body(session_summary(&s, hu)).show();
+                    let _ = app.emit("game:session", s);
+                }
+
                 let cpu = c.cpu(now);
                 let network = c.network(now);
                 let snap = SystemSnapshot {
@@ -546,8 +644,26 @@ pub fn spawn(app: AppHandle, shared: Shared, prefs: SharedPrefs, hist: SharedHis
                     game: c.game.clone(),
                     sampled_at: now,
                 };
-                for body in alerts.check(&p_now.alerts, &snap) {
-                    let _ = app.notification().builder().title("SystemCore alert").body(body).show();
+                for body in alerts.check(&p_now.alerts, &snap, hu) {
+                    let _ = app.notification().builder().title(tr("SystemCore alert", "SystemCore riasztás")).body(body).show();
+                }
+                let gpu_snap = snap.gpus.value.as_ref().and_then(|g| g.first());
+                let throttling = [
+                    ("CPU", snap.cpu.thermal_throttling, snap.cpu.temperature_c.value),
+                    ("GPU", gpu_snap.and_then(|g| g.thermal_throttling), gpu_snap.and_then(|g| g.temperature_c.value)),
+                ];
+                for ((name, on, temp), noted) in throttling.into_iter().zip(throttle_noted.iter_mut()) {
+                    let quiet = noted.is_some_and(|t| c.tick - t < THROTTLE_NOTE_GAP);
+                    if p_now.alerts.throttle_enabled && on == Some(true) && !quiet {
+                        *noted = Some(c.tick);
+                        let t = temp.map_or(String::new(), |t| format!(" ({t:.0} °C)"));
+                        let body = if hu {
+                            format!("A(z) {name} lelassítja magát, mert túl meleg{t}. Ellenőrizd a hűtést és a légáramlást.")
+                        } else {
+                            format!("The {name} is slowing itself down because it is too hot{t}. Check the cooling and airflow.")
+                        };
+                        let _ = app.notification().builder().title(tr("SystemCore: overheating", "SystemCore: túlmelegedés")).body(body).show();
+                    }
                 }
                 if c.due(history::EVERY_TICKS) {
                     let gpu = snap.gpus.value.as_ref().and_then(|g| g.first());
@@ -583,11 +699,25 @@ mod tests {
     fn health_alerts_only_when_worse() {
         let disk = |health| win::wmi_sources::DiskHealth { health, media: None, model: Some("SSD X".into()) };
         let map = |h| HashMap::from([("C".to_string(), disk(h))]);
-        assert_eq!(health_alerts(&HashMap::new(), &map("Warning")), vec!["Drive C: (SSD X) reports Warning. Back up your data."]);
-        assert!(health_alerts(&HashMap::new(), &map("Healthy")).is_empty());
-        assert!(health_alerts(&map("Warning"), &map("Warning")).is_empty());
-        assert_eq!(health_alerts(&map("Warning"), &map("Unhealthy")).len(), 1);
-        assert!(health_alerts(&map("Unhealthy"), &map("Healthy")).is_empty());
+        assert_eq!(health_alerts(&HashMap::new(), &map("Warning"), false), vec!["Drive C: (SSD X) reports Warning. Back up your data."]);
+        assert_eq!(
+            health_alerts(&HashMap::new(), &map("Warning"), true),
+            vec!["A(z) C: meghajtó (SSD X) állapota: Figyelmeztetés. Készíts biztonsági mentést!"]
+        );
+        assert!(health_alerts(&HashMap::new(), &map("Healthy"), false).is_empty());
+        assert!(health_alerts(&map("Warning"), &map("Warning"), false).is_empty());
+        assert_eq!(health_alerts(&map("Warning"), &map("Unhealthy"), false).len(), 1);
+        assert!(health_alerts(&map("Unhealthy"), &map("Healthy"), false).is_empty());
+    }
+
+    #[test]
+    fn cpu_throttling_needs_heat() {
+        assert_eq!(cpu_throttling(None, Some(100.0), Some(1000), Some(3600)), None, "no temperature: unknown");
+        assert_eq!(cpu_throttling(Some(60.0), Some(100.0), Some(1000), Some(3600)), Some(false), "slow but cool: power saving");
+        assert_eq!(cpu_throttling(Some(88.0), Some(90.0), Some(2800), Some(3600)), Some(true));
+        assert_eq!(cpu_throttling(Some(88.0), Some(90.0), Some(4200), Some(3600)), Some(false), "hot but boosting");
+        assert_eq!(cpu_throttling(Some(88.0), Some(10.0), Some(1200), Some(3600)), Some(false), "idle clocks down");
+        assert_eq!(cpu_throttling(Some(96.0), None, None, None), Some(true));
     }
 
     #[test]

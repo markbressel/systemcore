@@ -2,6 +2,7 @@ import { useSmoothValue } from "../../hooks/useSmoothValue";
 import { Gauge } from "../../components/metrics/Gauge";
 import { MetricValue } from "../../components/metrics/MetricValue";
 import { formatBytes, formatDuration, pctParts } from "../../lib/format";
+import { t } from "../../lib/i18n";
 import type { SystemSnapshot } from "../../types/telemetry";
 import type { PerfTab } from "../performance/PerformancePage";
 
@@ -19,10 +20,10 @@ export function Cockpit({ s, onOpen }: Props) {
   const gpu = s.gpus.value?.[0];
   const mem = s.memory;
   const memPct = useSmoothValue(mem.usagePercent.value);
-  const gpuMissing = !gpu ? (s.gpus.status === "available" ? "No GPU" : "Not supported") : "Measuring…";
+  const gpuMissing = !gpu ? (s.gpus.status === "available" ? t("No GPU") : t("Not supported")) : t("Measuring…");
 
   return (
-    <section className="cockpit" aria-label="Live system instruments">
+    <section className="cockpit" aria-label={t("Live system instruments")}>
       <svg className="cockpit__bezel" viewBox="0 0 1000 400" preserveAspectRatio="none" aria-hidden="true">
         <defs>
           <radialGradient id="cockpit-fill" cx="50%" cy="50%" r="60%">
@@ -34,12 +35,12 @@ export function Cockpit({ s, onOpen }: Props) {
         <path d={BEZEL} className="cockpit__bezel-inner" transform="translate(500 200) scale(0.965 0.93) translate(-500 -200)" />
       </svg>
 
-      <button type="button" className="cockpit__dial" onClick={() => onOpen("cpu")} aria-label="CPU usage: open details">
-        <Gauge value={cpu.status === "available" ? cpu.value : null} label="CPU Usage" />
+      <button type="button" className="cockpit__dial" onClick={() => onOpen("cpu")} aria-label={t("CPU usage: open details")}>
+        <Gauge value={cpu.status === "available" ? cpu.value : null} label={t("CPU Usage")} />
       </button>
 
-      <button type="button" className="cockpit__center" onClick={() => onOpen("memory")} aria-label="Memory usage: open details">
-        <span className="cockpit__banner">Memory Usage</span>
+      <button type="button" className="cockpit__center" onClick={() => onOpen("memory")} aria-label={t("Memory usage: open details")}>
+        <span className="cockpit__banner">{t("Memory Usage")}</span>
         <span className="cockpit__big">
           <MetricValue metric={mem.usagePercent} format={(v) => pctParts(v, 0)} />
         </span>
@@ -52,12 +53,12 @@ export function Cockpit({ s, onOpen }: Props) {
             : "—"}
         </span>
         <span className="cockpit__plate">
-          Uptime <strong>{s.uptimeSecs.value != null ? formatDuration(s.uptimeSecs.value) : "—"}</strong>
+          {t("Uptime")} <strong>{s.uptimeSecs.value != null ? formatDuration(s.uptimeSecs.value) : "—"}</strong>
         </span>
       </button>
 
-      <button type="button" className="cockpit__dial" onClick={() => onOpen("gpu")} aria-label="GPU usage: open details">
-        <Gauge value={gpu?.usagePercent.status === "available" ? gpu.usagePercent.value : null} label="GPU Usage" missingText={gpuMissing} />
+      <button type="button" className="cockpit__dial" onClick={() => onOpen("gpu")} aria-label={t("GPU usage: open details")}>
+        <Gauge value={gpu?.usagePercent.status === "available" ? gpu.usagePercent.value : null} label={t("GPU Usage")} missingText={gpuMissing} />
       </button>
     </section>
   );

@@ -6,6 +6,7 @@ use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, MonitorFromWindow, MONITORI
 use windows::Win32::System::Threading::{
     GetPriorityClass, OpenProcess, SetPriorityClass, ABOVE_NORMAL_PRIORITY_CLASS, BELOW_NORMAL_PRIORITY_CLASS, HIGH_PRIORITY_CLASS,
     IDLE_PRIORITY_CLASS, NORMAL_PRIORITY_CLASS, PROCESS_CREATION_FLAGS, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SET_INFORMATION,
+    PROCESS_SYNCHRONIZE, WaitForSingleObject,
 };
 use windows::Win32::UI::Shell::{IsUserAnAdmin, ShellExecuteW};
 use windows::Win32::UI::WindowsAndMessaging::{GetClassNameW, GetForegroundWindow, GetWindowRect, GetWindowThreadProcessId, SW_SHOWNORMAL};
@@ -49,9 +50,25 @@ pub fn is_elevated() -> bool {
 }
 
 /// Starts this exe again through the UAC prompt. The caller exits on success.
+const WAIT_PID_ARG: &str = "--wait-pid";
+
+/// Elevated restart: wait (max 10 s) for the old instance to exit, or the single-instance guard
+/// would see it still running and close this one.
+pub fn wait_for_previous_instance() {
+    let mut args = std::env::args();
+    let Some(pid) = args.position(|a| a == WAIT_PID_ARG).and_then(|_| args.next()).and_then(|p| p.parse::<u32>().ok()) else { return };
+    unsafe {
+        if let Ok(h) = OpenProcess(PROCESS_SYNCHRONIZE, false, pid) {
+            WaitForSingleObject(h, 10_000);
+            let _ = CloseHandle(h);
+        }
+    }
+}
+
 pub fn relaunch_elevated() -> Result<(), String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let r = unsafe { ShellExecuteW(None, &HSTRING::from("runas"), &HSTRING::from(exe.as_os_str()), PCWSTR::null(), PCWSTR::null(), SW_SHOWNORMAL) };
+    let args = HSTRING::from(format!("{WAIT_PID_ARG} {}", std::process::id()));
+    let r = unsafe { ShellExecuteW(None, &HSTRING::from("runas"), &HSTRING::from(exe.as_os_str()), &args, PCWSTR::null(), SW_SHOWNORMAL) };
     // ShellExecute reports success as a value above 32; the user declining UAC is the usual failure.
     if r.0 as usize > 32 { Ok(()) } else { Err("Administrator rights were not granted.".into()) }
 }

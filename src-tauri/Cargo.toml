@@ -1,6 +1,6 @@
 [package]
 name = "systemcore"
-version = "0.1.1"
+version = "0.2.0"
 description = "SystemCore - desktop system monitor"
 edition = "2021"
 
@@ -23,6 +23,7 @@ tauri-plugin-process = "2"
 tauri-plugin-autostart = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-opener = "2"
+tauri-plugin-single-instance = "2"
 
 # Windows platform adapters: PDH counters + commit charge, NVIDIA sensors (NVML, loaded at runtime), WMI,
 # ETW present events (FPS), registry (startup apps), process priority and foreground-window checks.
@@ -32,3 +33,11 @@ nvml-wrapper = "0.13"
 wmi = "0.18"
 ferrisetw = "1.2.0"
 winreg = "0.56.0"
+
+# Dev builds: full debug info for every dependency made target/ grow to tens of GB.
+# Keep line numbers for our own crate (readable panics), none for dependencies.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false

@@ -1,15 +1,16 @@
 import { formatBytes } from "../../lib/format";
+import { t } from "../../lib/i18n";
 import type { DisksSnapshot, HardwareInfo } from "../../types/telemetry";
 
 /** Plain-text spec sheet for forums or support. Leaves out the computer name and MAC addresses. */
 export function specReport(hw: HardwareInfo, disks: DisksSnapshot | null, version: string | null): string {
   const lines: string[] = [];
   const add = (label: string, value: string | number | null | undefined) => {
-    if (value != null && value !== "") lines.push(`  ${label.padEnd(18)} ${value}`);
+    if (value != null && value !== "") lines.push(`  ${t(label).padEnd(18)} ${value}`);
   };
-  const section = (title: string) => lines.push("", title);
+  const section = (title: string) => lines.push("", t(title));
 
-  lines.push(`SystemCore ${version ? `v${version} ` : ""}system report · ${new Date().toLocaleString()}`);
+  lines.push(t("{app} system report · {date}", { app: version ? `SystemCore v${version}` : "SystemCore", date: new Date().toLocaleString() }));
 
   section("Processor");
   add("Model", hw.cpu.brand);
@@ -25,7 +26,7 @@ export function specReport(hw: HardwareInfo, disks: DisksSnapshot | null, versio
   add("Installed", hw.memoryTotalBytes != null ? formatBytes(hw.memoryTotalBytes, 0) : null);
   hw.memoryModules.forEach((m, i) => {
     const speed = m.configuredSpeedMts ?? m.speedMts;
-    add(`Module ${i + 1}`, [m.capacityBytes != null && formatBytes(m.capacityBytes, 0), m.kind, speed && `${speed} MT/s`, m.manufacturer, m.partNumber].filter(Boolean).join(" · "));
+    add(t("Module {n}", { n: i + 1 }), [m.capacityBytes != null && formatBytes(m.capacityBytes, 0), m.kind, speed && `${speed} MT/s`, m.manufacturer, m.partNumber].filter(Boolean).join(" · "));
   });
 
   section("Graphics");
@@ -34,7 +35,7 @@ export function specReport(hw: HardwareInfo, disks: DisksSnapshot | null, versio
   if (disks?.disks.length) {
     section("Storage");
     disks.disks.forEach((d) =>
-      add(d.mountPoint, [d.model ?? d.name, !d.kind.startsWith("Unknown") && d.kind, `${formatBytes(d.totalBytes, 0)} (${formatBytes(d.availableBytes, 0)} free)`, d.fileSystem, d.health && `health: ${d.health}`].filter(Boolean).join(" · ")),
+      add(d.mountPoint, [d.model ?? d.name, !d.kind.startsWith("Unknown") && d.kind, `${formatBytes(d.totalBytes, 0)} (${t("{size} free", { size: formatBytes(d.availableBytes, 0) })})`, d.fileSystem, d.health && t("health: {health}", { health: t(d.health) })].filter(Boolean).join(" · ")),
     );
   }
 

@@ -7,7 +7,9 @@ import { setOverlay, showMain } from "../../lib/tauri";
 import { updateOverlay, useSettings } from "../../stores/settings";
 import { startTelemetry, useTelemetry } from "../../stores/telemetry";
 import type { Metric } from "../../types/telemetry";
+import { bottleneck, LIMIT_TEXT } from "./bottleneck";
 import { cornerPosition } from "./placement";
+import { t } from "../../lib/i18n";
 
 const v = (m: Metric<number> | undefined) => (m?.status === "available" ? m.value : null);
 const temp = (c: number | null) => (c == null ? null : <span className={c >= 85 ? "overlay__hot" : undefined}>{c.toFixed(0)}°C</span>);
@@ -115,22 +117,35 @@ export function Overlay() {
   const frameMs = v(game?.frameTimeMs);
   const low1 = v(game?.low1Fps);
   // Short reason when FPS is missing: no admin rights, or the foreground app is not rendering.
-  const fpsHint = game?.fps.status === "unsupported" ? "Needs admin" : "No frames";
+  const fpsHint = game?.fps.status === "unsupported" ? t("Needs admin") : t("No frames");
+  const cores = cpu?.perCorePercent.status === "available" ? cpu.perCorePercent.value : null;
+  // Only meaningful while a game is running.
+  const limit =
+    o.rows.limit && (game?.fullscreen || fps != null)
+      ? bottleneck({
+          gpuPercent: v(gpu?.usagePercent),
+          cpuPercent: v(cpu?.usagePercent),
+          busiestCorePercent: cores?.length ? Math.max(...cores) : null,
+          cpuThrottling: cpu?.thermalThrottling ?? null,
+          gpuThrottling: gpu?.thermalThrottling ?? null,
+        })
+      : null;
+  const limitHot = limit === "cpu-hot" || limit === "gpu-hot";
 
   const rows = o.rows;
   const actions = (
     // Shown on hover; mousedown must not start a window drag.
     <span className="overlay__actions" onMouseDown={(e) => e.stopPropagation()}>
-      <button type="button" className="overlay__action" title="Open SystemCore" aria-label="Open SystemCore" onClick={() => void showMain()}>
+      <button type="button" className="overlay__action" title={t("Open SystemCore")} aria-label={t("Open SystemCore")} onClick={() => void showMain()}>
         <AppWindow aria-hidden="true" />
       </button>
-      <button type="button" className="overlay__action" title="Close overlay" aria-label="Close overlay" onClick={() => void setOverlay(false)}>
+      <button type="button" className="overlay__action" title={t("Close overlay")} aria-label={t("Close overlay")} onClick={() => void setOverlay(false)}>
         <X aria-hidden="true" />
       </button>
     </span>
   );
-  const live = <span className={`overlay__live${stale || !system ? " overlay__live--off" : ""}`} title={stale ? "Data stale" : "Live"} />;
-  const modeIcon = movable ? <Move className="overlay__mode" aria-label="Drag to move" /> : o.freeMove ? <Lock className="overlay__mode" aria-label="Position locked" /> : null;
+  const live = <span className={`overlay__live${stale || !system ? " overlay__live--off" : ""}`} title={stale ? t("Data stale") : t("Live")} />;
+  const modeIcon = movable ? <Move className="overlay__mode" aria-label={t("Drag to move")} /> : o.freeMove ? <Lock className="overlay__mode" aria-label={t("Position locked")} /> : null;
   const rateText = (r: number | null) => (r == null ? "—" : formatRate(r));
   const pingText = ping == null ? "—" : `${ping.toFixed(0)} ms`;
 
@@ -151,6 +166,12 @@ export function Overlay() {
             <span className="overlay__chip overlay__chip--fps">
               <b className="overlay__label">FPS</b>
               <span className="overlay__value">{fps == null ? "—" : fps.toFixed(0)}</span>
+            </span>
+          )}
+          {limit && (
+            <span className={`overlay__chip overlay__chip--limit${limitHot ? " overlay__hot" : ""}`} title={t("What holds the frame rate back")}>
+              <b className="overlay__label">{t("LIMIT")}</b>
+              <span className="overlay__value">{t(LIMIT_TEXT[limit])}</span>
             </span>
           )}
           {rows.cpu && <Chip label="CPU" tone="cpu" percent={v(cpu?.usagePercent)} extra={temp(v(cpu?.temperatureC))} />}
@@ -193,11 +214,16 @@ export function Overlay() {
                 ) : (
                   <>
                     <span>{frameMs?.toFixed(1)} ms</span>
-                    <span>1% low {low1?.toFixed(0)}</span>
+                    <span>{t("1% low")} {low1?.toFixed(0)}</span>
                   </>
                 )}
                 <span className="overlay__fps-app">{game?.process?.replace(/\.exe$/i, "") ?? ""}</span>
               </span>
+            </div>
+          )}
+          {limit && (
+            <div className={`overlay__limit${limitHot ? " overlay__hot" : ""}`} title={t("What holds the frame rate back")}>
+              {t("Limited by")} <b>{t(LIMIT_TEXT[limit])}</b>
             </div>
           )}
           {rows.cpu && <Row label="CPU" tone="cpu" percent={v(cpu?.usagePercent)} details={[temp(v(cpu?.temperatureC)), ghz == null ? null : `${(ghz / 1000).toFixed(2)} GHz`]} />}

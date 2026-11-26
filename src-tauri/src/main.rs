@@ -1,5 +1,5 @@
-// Hide the extra console window on Windows release builds.
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// No console window on Windows, dev builds included (`tauri dev` still pipes the logs).
+#![windows_subsystem = "windows"]
 
 fn main() {
     systemcore_lib::run()

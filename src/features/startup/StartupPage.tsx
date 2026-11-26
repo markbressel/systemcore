@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { EmptyState, LoadingState } from "../../components/feedback/States";
 import { StatusBadge } from "../../components/feedback/StatusBadge";
 import { PageContainer } from "../../components/layout/PageContainer";
+import { t } from "../../lib/i18n";
 import { listStartupApps, setStartupEnabled } from "../../lib/tauri";
 import type { StartupApp } from "../../types/telemetry";
 
@@ -11,7 +12,7 @@ export function StartupPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const reload = useCallback(() => listStartupApps().then(setApps).catch((e) => setError(String(e))), []);
+  const reload = useCallback(() => listStartupApps().then(setApps).catch((e) => setError(t(String(e)))), []);
   useEffect(() => void reload(), [reload]);
 
   const toggle = async (a: StartupApp) => {
@@ -20,7 +21,7 @@ export function StartupPage() {
     try {
       await setStartupEnabled(a.id, !a.enabled);
     } catch (e) {
-      setError(`${a.name}: ${e}`);
+      setError(`${a.name}: ${t(String(e))}`);
     }
     await reload();
     setBusy(null);
@@ -30,8 +31,8 @@ export function StartupPage() {
 
   return (
     <PageContainer
-      title="Startup apps"
-      subtitle="Programs that start when you sign in. Disabling works like Task Manager: the entry stays and can be turned back on."
+      title={t("Startup apps")}
+      subtitle={t("Programs that start when you sign in. Disabling works like Task Manager: the entry stays and can be turned back on.")}
     >
       {error && (
         <div className="notice notice--danger" role="alert">
@@ -41,22 +42,22 @@ export function StartupPage() {
       {!apps ? (
         <LoadingState />
       ) : apps.length === 0 ? (
-        <EmptyState icon={Rocket}>No startup programs found.</EmptyState>
+        <EmptyState icon={Rocket}>{t("No startup programs found.")}</EmptyState>
       ) : (
         <section className="panel panel--flush">
           <div className="panel__header startup__header">
             <h2 className="panel__title">
-              <Rocket className="panel__icon" aria-hidden="true" /> {enabled} of {apps.length} enabled
+              <Rocket className="panel__icon" aria-hidden="true" /> {t("{enabled} of {total} enabled", { enabled, total: apps.length })}
             </h2>
           </div>
           <div className="table-scroll">
             <table className="data-table startup">
               <thead>
                 <tr>
-                  <th>Program</th>
-                  <th>Location</th>
-                  <th className="data-table__col--medium">Status</th>
-                  <th className="data-table__col--narrow">On</th>
+                  <th>{t("Program")}</th>
+                  <th>{t("Location")}</th>
+                  <th className="data-table__col--medium">{t("Status")}</th>
+                  <th className="data-table__col--narrow">{t("On")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -69,11 +70,11 @@ export function StartupPage() {
                       </div>
                     </td>
                     <td className="startup__location">
-                      {a.location}
-                      {a.needsAdmin && <div className="startup__admin">Needs administrator to change</div>}
+                      {t(a.location)}
+                      {a.needsAdmin && <div className="startup__admin">{t("Needs administrator to change")}</div>}
                     </td>
                     <td>
-                      <StatusBadge tone={a.enabled ? "success" : "neutral"}>{a.enabled ? "Enabled" : "Disabled"}</StatusBadge>
+                      <StatusBadge tone={a.enabled ? "success" : "neutral"}>{a.enabled ? t("Enabled") : t("Disabled")}</StatusBadge>
                     </td>
                     <td>
                       <button
@@ -81,7 +82,7 @@ export function StartupPage() {
                         role="switch"
                         className="switch"
                         aria-checked={a.enabled}
-                        aria-label={`Start ${a.name} with Windows`}
+                        aria-label={t("Start {name} with Windows", { name: a.name })}
                         disabled={busy != null}
                         onClick={() => void toggle(a)}
                       >

@@ -9,6 +9,7 @@ import { MetricIndicator } from "../../components/metrics/MetricIndicator";
 import { MetricValue } from "../../components/metrics/MetricValue";
 import { StatList } from "../../components/metrics/StatList";
 import { bytesParts, formatBytes, formatPercent } from "../../lib/format";
+import { t } from "../../lib/i18n";
 import { useSmoothValue } from "../../hooks/useSmoothValue";
 import { useHardware } from "../../stores/hardware";
 import { useTelemetry, type TelemetryState } from "../../stores/telemetry";
@@ -31,15 +32,15 @@ interface Props {
 }
 
 export function PerformancePage({ tab, onTab }: Props) {
-  const t = useTelemetry();
-  if (!t.system) return <LoadingState />;
+  const tm = useTelemetry();
+  if (!tm.system) return <LoadingState />;
 
   return (
     <PageContainer
-      title="Performance"
-      subtitle="Detailed resource telemetry · 60-second history"
+      title={t("Performance")}
+      subtitle={t("Detailed resource telemetry · 60-second history")}
       actions={
-        <div className="tabs" role="tablist" aria-label="Resource">
+        <div className="tabs" role="tablist" aria-label={t("Resource")}>
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -50,57 +51,57 @@ export function PerformancePage({ tab, onTab }: Props) {
               onClick={() => onTab(id)}
             >
               <Icon className="tabs__icon" aria-hidden="true" />
-              {label}
+              {t(label)}
             </button>
           ))}
         </div>
       }
     >
-      {tab === "cpu" && <CpuView s={t.system} t={t} />}
-      {tab === "memory" && <MemoryView s={t.system} t={t} />}
-      {tab === "gpu" && <GpuView s={t.system} t={t} />}
+      {tab === "cpu" && <CpuView s={tm.system} tm={tm} />}
+      {tab === "memory" && <MemoryView s={tm.system} tm={tm} />}
+      {tab === "gpu" && <GpuView s={tm.system} tm={tm} />}
     </PageContainer>
   );
 }
 
 interface ViewProps {
   s: SystemSnapshot;
-  t: TelemetryState;
+  tm: TelemetryState;
 }
 
-function CpuView({ s, t }: ViewProps) {
+function CpuView({ s, tm }: ViewProps) {
   const { hardware } = useHardware();
   const { cpu } = s;
   const cores = cpu.perCorePercent.value;
   return (
     <>
-      <HardwareCard title={hardware?.cpu.brand ?? "Processor"} icon={Cpu} aside={<MetricStatus status={cpu.usagePercent.status} source={cpu.usagePercent.source} />}>
+      <HardwareCard title={hardware?.cpu.brand ?? t("Processor")} icon={Cpu} aside={<MetricStatus status={cpu.usagePercent.status} source={cpu.usagePercent.source} />}>
         <div className="readout">
-          <Gauge size="md" label="CPU Usage" value={cpu.usagePercent.status === "available" ? cpu.usagePercent.value : null} />
+          <Gauge size="md" label={t("CPU Usage")} value={cpu.usagePercent.status === "available" ? cpu.usagePercent.value : null} />
           <div>
-            <div className="readout__label">Current frequency</div>
-            <div className="readout__value readout__value--sm" title="May report base clock on some systems">
+            <div className="readout__label">{t("Current frequency")}</div>
+            <div className="readout__value readout__value--sm" title={t("May report base clock on some systems")}>
               <MetricValue metric={cpu.frequencyMhz} format={(v) => [(v / 1000).toFixed(2), "GHz"]} />
             </div>
           </div>
           <div>
-            <div className="readout__label">Temperature</div>
+            <div className="readout__label">{t("Temperature")}</div>
             <div className="readout__value readout__value--sm"><MetricValue metric={cpu.temperatureC} format={(v) => [v.toFixed(0), "°C"]} /></div>
           </div>
         </div>
-        <PerformanceChart title="Total utilization · %" size="lg" max={100} format={fmtPct} stale={t.stale} series={[{ data: t.history.cpu, color: "var(--color-chart-cpu)", label: "CPU" }]} />
+        <PerformanceChart title={t("Total utilization · %")} size="lg" max={100} format={fmtPct} stale={tm.stale} series={[{ data: tm.history.cpu, color: "var(--color-chart-cpu)", label: "CPU" }]} />
         <StatList
           items={[
-            ["Vendor", hardware?.cpu.vendor],
-            ["Architecture", hardware?.cpu.architecture],
-            ["Physical cores", hardware?.cpu.physicalCores],
-            ["Logical processors", hardware?.cpu.logicalProcessors || cores?.length],
-            ["Base frequency", <MetricValue metric={cpu.baseFrequencyMhz} format={(v) => [(v / 1000).toFixed(2), "GHz"]} />],
+            [t("Vendor"), hardware?.cpu.vendor],
+            [t("Architecture"), hardware?.cpu.architecture],
+            [t("Physical cores"), hardware?.cpu.physicalCores],
+            [t("Logical processors"), hardware?.cpu.logicalProcessors || cores?.length],
+            [t("Base frequency"), <MetricValue metric={cpu.baseFrequencyMhz} format={(v) => [(v / 1000).toFixed(2), "GHz"]} />],
           ]}
         />
       </HardwareCard>
 
-      <HardwareCard title="Per-core utilization" icon={Grid3x3} aside={cores && <span>{cores.length} logical processors</span>}>
+      <HardwareCard title={t("Per-core utilization")} icon={Grid3x3} aside={cores && <span>{t("{count} logical processors", { count: cores.length })}</span>}>
         {cores ? (
           <div className="core-grid">
             {cores.map((c, i) => (
@@ -109,19 +110,19 @@ function CpuView({ s, t }: ViewProps) {
                   <span className="core-grid__id">CPU {i}</span>
                   <span className="core-grid__value">{c.toFixed(0)}%</span>
                 </div>
-                <MetricIndicator resource="cpu" thin percent={c} label={`Logical processor ${i}`} />
+                <MetricIndicator resource="cpu" thin percent={c} label={t("Logical processor {n}", { n: i })} />
               </div>
             ))}
           </div>
         ) : (
-          <EmptyState compact>Measuring per-core usage…</EmptyState>
+          <EmptyState compact>{t("Measuring per-core usage…")}</EmptyState>
         )}
       </HardwareCard>
     </>
   );
 }
 
-function MemoryView({ s, t }: ViewProps) {
+function MemoryView({ s, tm }: ViewProps) {
   const mem = s.memory;
   const used = mem.usedBytes.value;
   const total = mem.totalBytes.value;
@@ -129,47 +130,47 @@ function MemoryView({ s, t }: ViewProps) {
   const smoothUsed = useSmoothValue(usedPct);
   return (
     <>
-      <HardwareCard title="Physical memory" icon={MemoryStick} aside={<MetricStatus status={mem.usagePercent.status} source={mem.usagePercent.source} />}>
+      <HardwareCard title={t("Physical memory")} icon={MemoryStick} aside={<MetricStatus status={mem.usagePercent.status} source={mem.usagePercent.source} />}>
         <div className="readout">
-          <Gauge size="md" label="Memory" value={mem.usagePercent.status === "available" ? mem.usagePercent.value : null} />
+          <Gauge size="md" label={t("Memory")} value={mem.usagePercent.status === "available" ? mem.usagePercent.value : null} />
           <div>
-            <div className="readout__label">In use</div>
+            <div className="readout__label">{t("In use")}</div>
             <div className="readout__value"><MetricValue metric={mem.usedBytes} format={bytes} /></div>
           </div>
           <div>
-            <div className="readout__label">Available</div>
+            <div className="readout__label">{t("Available")}</div>
             <div className="readout__value readout__value--sm"><MetricValue metric={mem.availableBytes} format={bytes} /></div>
           </div>
         </div>
-        <PerformanceChart title="Memory utilization · %" size="lg" max={100} format={fmtPct} stale={t.stale} series={[{ data: t.history.memory, color: "var(--color-chart-memory)", label: "Memory" }]} />
+        <PerformanceChart title={t("Memory utilization · %")} size="lg" max={100} format={fmtPct} stale={tm.stale} series={[{ data: tm.history.memory, color: "var(--color-chart-memory)", label: t("Memory") }]} />
       </HardwareCard>
 
-      <HardwareCard title="Memory distribution" icon={PieChart}>
+      <HardwareCard title={t("Memory distribution")} icon={PieChart}>
         {usedPct != null && total != null && used != null ? (
           <div className="distribution">
-            <div className="distribution__bar" role="img" aria-label={`${formatPercent(usedPct)} in use, ${formatPercent(100 - usedPct)} available`}>
+            <div className="distribution__bar" role="img" aria-label={t("{used} in use, {free} available", { used: formatPercent(usedPct), free: formatPercent(100 - usedPct) })}>
               <div className="distribution__part distribution__part--memory" style={{ width: `${smoothUsed ?? usedPct}%` }} />
               <div className="distribution__part distribution__part--free" />
             </div>
             <div className="distribution__legend">
               <span className="chart__legend-item" style={{ ["--series-color" as string]: "var(--color-chart-memory)" }}>
-                In use · <span className="u-mono">{formatBytes(used, 2)}</span>
+                {t("In use")} · <span className="u-mono">{formatBytes(used, 2)}</span>
               </span>
               <span className="chart__legend-item" style={{ ["--series-color" as string]: "var(--color-surface-active)" }}>
-                Available · <span className="u-mono">{formatBytes(total - used, 2)}</span>
+                {t("Available")} · <span className="u-mono">{formatBytes(total - used, 2)}</span>
               </span>
             </div>
           </div>
         ) : (
-          <EmptyState compact>Measuring…</EmptyState>
+          <EmptyState compact>{t("Measuring…")}</EmptyState>
         )}
         <StatList
           items={[
-            ["Total physical", <MetricValue metric={mem.totalBytes} format={bytes} />],
-            ["Committed", <MetricValue metric={mem.committedBytes} format={bytes} />],
-            ["Commit limit", <MetricValue metric={mem.commitLimitBytes} format={bytes} />],
-            ["Page file in use", <MetricValue metric={mem.swapUsedBytes} format={bytes} />],
-            ["Page file size", <MetricValue metric={mem.swapTotalBytes} format={bytes} />],
+            [t("Total physical"), <MetricValue metric={mem.totalBytes} format={bytes} />],
+            [t("Committed"), <MetricValue metric={mem.committedBytes} format={bytes} />],
+            [t("Commit limit"), <MetricValue metric={mem.commitLimitBytes} format={bytes} />],
+            [t("Page file in use"), <MetricValue metric={mem.swapUsedBytes} format={bytes} />],
+            [t("Page file size"), <MetricValue metric={mem.swapTotalBytes} format={bytes} />],
           ]}
         />
       </HardwareCard>
@@ -177,12 +178,12 @@ function MemoryView({ s, t }: ViewProps) {
   );
 }
 
-function GpuView({ s, t }: ViewProps) {
+function GpuView({ s, tm }: ViewProps) {
   if (s.gpus.status !== "available") {
     return <EmptyState icon={Monitor}><MetricValue metric={s.gpus} format={() => ""} /></EmptyState>;
   }
   const gpus = s.gpus.value ?? [];
-  if (gpus.length === 0) return <EmptyState icon={Monitor}>No GPU detected by the provider.</EmptyState>;
+  if (gpus.length === 0) return <EmptyState icon={Monitor}>{t("No GPU detected by the provider.")}</EmptyState>;
 
   return (
     <>
@@ -191,49 +192,49 @@ function GpuView({ s, t }: ViewProps) {
         const total = g.vramTotalBytes.value;
         const vramPct = used != null && total ? (used / total) * 100 : null;
         return (
-          <HardwareCard key={g.id} title={g.model ?? "Unknown GPU"} icon={Monitor} aside={<MetricStatus status={g.usagePercent.status} source={g.usagePercent.source} />}>
+          <HardwareCard key={g.id} title={g.model ?? t("Unknown GPU")} icon={Monitor} aside={<MetricStatus status={g.usagePercent.status} source={g.usagePercent.source} />}>
             <div className="readout">
-              <Gauge size="md" label="GPU Usage" value={g.usagePercent.status === "available" ? g.usagePercent.value : null} />
+              <Gauge size="md" label={t("GPU Usage")} value={g.usagePercent.status === "available" ? g.usagePercent.value : null} />
               <div>
-                <div className="readout__label">Dedicated memory</div>
+                <div className="readout__label">{t("Dedicated memory")}</div>
                 <div className="readout__value readout__value--sm"><MetricValue metric={g.vramUsedBytes} format={bytes} /></div>
               </div>
               <div>
-                <div className="readout__label">Temperature</div>
+                <div className="readout__label">{t("Temperature")}</div>
                 <div className="readout__value readout__value--sm"><MetricValue metric={g.temperatureC} format={(v) => [v.toFixed(0), "°C"]} /></div>
               </div>
               <div>
-                <div className="readout__label">Power draw</div>
+                <div className="readout__label">{t("Power draw")}</div>
                 <div className="readout__value readout__value--sm"><MetricValue metric={g.powerWatts} format={(v) => [v.toFixed(1), "W"]} /></div>
               </div>
             </div>
             {i === 0 && (
-              <PerformanceChart title="GPU utilization · %" size="lg" max={100} format={fmtPct} stale={t.stale} series={[{ data: t.history.gpu, color: "var(--color-chart-gpu)", label: "GPU" }]} />
+              <PerformanceChart title={t("GPU utilization · %")} size="lg" max={100} format={fmtPct} stale={tm.stale} series={[{ data: tm.history.gpu, color: "var(--color-chart-gpu)", label: "GPU" }]} />
             )}
             <div className="grid grid--halves">
               <div>
-                <div className="panel__group-title"><GaugeIcon className="tabs__icon" aria-hidden="true" /> Memory{vramPct != null && ` · ${vramPct.toFixed(0)}% dedicated in use`}</div>
-                {vramPct != null && <MetricIndicator resource="gpu" percent={vramPct} label="Dedicated memory usage" />}
+                <div className="panel__group-title"><GaugeIcon className="tabs__icon" aria-hidden="true" /> {t("Memory")}{vramPct != null && ` · ${t("{pct}% dedicated in use", { pct: vramPct.toFixed(0) })}`}</div>
+                {vramPct != null && <MetricIndicator resource="gpu" percent={vramPct} label={t("Dedicated memory usage")} />}
                 <StatList
                   single
                   items={[
-                    ["Dedicated used", <MetricValue metric={g.vramUsedBytes} format={bytes} />],
-                    ["Dedicated total", <MetricValue metric={g.vramTotalBytes} format={bytes} />],
-                    ["Shared memory", <MetricValue metric={g.sharedUsedBytes} format={bytes} />],
+                    [t("Dedicated used"), <MetricValue metric={g.vramUsedBytes} format={bytes} />],
+                    [t("Dedicated total"), <MetricValue metric={g.vramTotalBytes} format={bytes} />],
+                    [t("Shared memory"), <MetricValue metric={g.sharedUsedBytes} format={bytes} />],
                   ]}
                 />
               </div>
               <div>
-                <div className="panel__group-title"><Thermometer className="tabs__icon" aria-hidden="true" /> Sensors</div>
+                <div className="panel__group-title"><Thermometer className="tabs__icon" aria-hidden="true" /> {t("Sensors")}</div>
                 <StatList
                   single
                   items={[
-                    ["Vendor", g.vendor],
-                    ["Temperature", <MetricValue metric={g.temperatureC} format={(v) => [v.toFixed(0), "°C"]} />],
-                    ["Core clock", <MetricValue metric={g.coreClockMhz} format={(v) => [String(v), "MHz"]} />],
-                    ["Memory clock", <MetricValue metric={g.memoryClockMhz} format={(v) => [String(v), "MHz"]} />],
-                    ["Power draw", <MetricValue metric={g.powerWatts} format={(v) => [v.toFixed(1), "W"]} />],
-                    ["Fan", <MetricValue metric={g.fanPercent} format={(v) => [v.toFixed(0), "%"]} />],
+                    [t("Vendor"), g.vendor],
+                    [t("Temperature"), <MetricValue metric={g.temperatureC} format={(v) => [v.toFixed(0), "°C"]} />],
+                    [t("Core clock"), <MetricValue metric={g.coreClockMhz} format={(v) => [String(v), "MHz"]} />],
+                    [t("Memory clock"), <MetricValue metric={g.memoryClockMhz} format={(v) => [String(v), "MHz"]} />],
+                    [t("Power draw"), <MetricValue metric={g.powerWatts} format={(v) => [v.toFixed(1), "W"]} />],
+                    [t("Fan"), <MetricValue metric={g.fanPercent} format={(v) => [v.toFixed(0), "%"]} />],
                   ]}
                 />
               </div>

@@ -62,3 +62,34 @@ $palette: (
   "chart-download": $color-chart-download,
   "chart-upload": $color-chart-upload,
 );
+
+// Light theme: same token names, applied via :root[data-theme="light"] (main window only).
+// Status/chart hues are darkened so they keep contrast on white.
+$palette-light: (
+  "bg-primary": #f4f5f7,
+  "bg-secondary": #eceef1,
+  "bg-tertiary": #e4e7eb,
+  "surface": #ffffff,
+  "surface-hover": #f1f3f5,
+  "surface-active": #e6e9ed,
+  "border": #d3d8de,
+  "border-subtle": #e2e5e9,
+  "text-primary": #14181d,
+  "text-secondary": #4a5361,
+  "text-muted": #6b7480,
+  "text-on-accent": #ffffff,
+  "accent": #d9621f,
+  "accent-hover": #c4561a,
+  "accent-active": #ad4b15,
+  "accent-soft": #fbe3d4,
+  "success": #4d7c0f,
+  "warning": #a86b00,
+  "danger": #d32f2f,
+  "info": #0277bd,
+  "chart-cpu": #d9621f,
+  "chart-memory": #4d7c0f,
+  "chart-gpu": #0277bd,
+  "chart-storage": #7c4dcc,
+  "chart-download": #0277bd,
+  "chart-upload": #d9621f,
+);

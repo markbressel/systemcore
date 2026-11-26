@@ -64,6 +64,8 @@ pub struct CpuSnapshot {
     /// so this observed peak is the honest scale for the frequency bar.
     pub peak_frequency_mhz: Metric<u64>,
     pub temperature_c: Metric<f32>,
+    /// Running slower because it is too hot; `None` without a temperature reading.
+    pub thermal_throttling: Option<bool>,
 }
 
 #[derive(Serialize, Clone)]
@@ -96,6 +98,8 @@ pub struct GpuSnapshot {
     pub memory_clock_mhz: Metric<u64>,
     pub power_watts: Metric<f32>,
     pub fan_percent: Metric<f32>,
+    /// Driver-reported thermal slowdown (NVIDIA only); `None` when unknown.
+    pub thermal_throttling: Option<bool>,
 }
 
 #[derive(Serialize, Clone)]
@@ -163,12 +167,17 @@ pub struct ProcessInfo {
     pub start_time: u64,
     /// `None` when Windows denies access (typical for protected/system processes).
     pub exe: Option<String>,
+    /// Network bytes per second; `None` without per-process network data (needs administrator rights).
+    pub net_rx_bytes_per_sec: Option<f64>,
+    pub net_tx_bytes_per_sec: Option<f64>,
 }
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ProcessesSnapshot {
     pub processes: Vec<ProcessInfo>,
+    /// Per-process network traffic is being measured (ETW session running).
+    pub net_per_process: bool,
     pub sampled_at: u64,
 }
 

@@ -1,5 +1,6 @@
 import { STATUS_LABEL, type Formatted } from "../../lib/format";
 import type { Metric } from "../../types/telemetry";
+import { t } from "../../lib/i18n";
 
 interface Props<T> {
   metric: Metric<T>;
@@ -8,16 +9,16 @@ interface Props<T> {
 
 /** Renders a metric's value, or an honest reason why there is none (never a fake zero). */
 export function MetricValue<T>({ metric, format }: Props<T>) {
-  const title = `Source: ${metric.source}`;
+  const title = t("Source: {source}", { source: metric.source });
   if (metric.status === "available" && metric.value != null) {
     return <Value value={format(metric.value)} title={title} />;
   }
   return (
     <span
       className={`metric-value metric-value--missing${metric.status === "error" ? " metric-value--error" : ""}`}
-      title={metric.note ? `${STATUS_LABEL[metric.status]} · ${title}` : title}
+      title={metric.note ? `${t(STATUS_LABEL[metric.status])} · ${title}` : title}
     >
-      {metric.note ?? STATUS_LABEL[metric.status]}
+      {t(metric.note ?? STATUS_LABEL[metric.status])}
     </span>
   );
 }

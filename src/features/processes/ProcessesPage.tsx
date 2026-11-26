@@ -8,6 +8,7 @@ import { StatList } from "../../components/metrics/StatList";
 import { formatBytes, formatPercent } from "../../lib/format";
 import { useTelemetry } from "../../stores/telemetry";
 import type { Priority, ProcessInfo } from "../../types/telemetry";
+import { t } from "../../lib/i18n";
 
 const PRIORITIES: { id: Priority; label: string }[] = [
   { id: "high", label: "High" },
@@ -40,30 +41,30 @@ function ProcessActions({ p }: { p: ProcessInfo }) {
   return (
     <div className="processes__actions">
       <label className="processes__priority">
-        <span>Priority</span>
+        <span>{t("Priority")}</span>
         <select
           value={priority ?? ""}
           disabled={priority == null}
-          title={priority == null ? "Windows does not allow reading this process's priority" : undefined}
+          title={priority == null ? t("Windows does not allow reading this process's priority") : undefined}
           onChange={(e) => change(e.target.value as Priority)}
         >
-          {priority == null && <option value="">Unavailable</option>}
+          {priority == null && <option value="">{t("Unavailable")}</option>}
           {PRIORITIES.map((o) => (
             <option key={o.id} value={o.id}>
-              {o.label}
+              {t(o.label)}
             </option>
           ))}
         </select>
       </label>
       <div className="processes__buttons">
         <button type="button" className="button button--secondary" disabled={!p.exe} onClick={() => run(() => openProcessLocation(p.pid, p.startTime))}>
-          <FolderOpen className="button__icon" aria-hidden="true" /> Open file location
+          <FolderOpen className="button__icon" aria-hidden="true" /> {t("Open file location")}
         </button>
         <button type="button" className="button button--secondary" onClick={() => run(() => searchProcess(p.pid, p.startTime))}>
-          <Globe className="button__icon" aria-hidden="true" /> Search online
+          <Globe className="button__icon" aria-hidden="true" /> {t("Search online")}
         </button>
       </div>
-      {error && <p className="processes__error" role="alert">{error}</p>}
+      {error && <p className="processes__error" role="alert">{t(error)}</p>}
     </div>
   );
 }
@@ -84,7 +85,7 @@ function compare(a: ProcessInfo, b: ProcessInfo, key: SortKey) {
 }
 
 function StatusCell({ status }: { status: string }) {
-  return <StatusBadge tone="neutral" plain>{status}</StatusBadge>;
+  return <StatusBadge tone="neutral" plain>{t(status)}</StatusBadge>;
 }
 
 export function ProcessesPage() {
@@ -116,7 +117,7 @@ export function ProcessesPage() {
     return list;
   }, [processes, query, sort]);
 
-  if (!processes) return <LoadingState label="Enumerating processes…" />;
+  if (!processes) return <LoadingState label={t("Enumerating processes…")} />;
 
   const current = selected && processes.processes.find((p) => p.pid === selected.pid && p.startTime === selected.startTime);
   const toggleSort = (key: SortKey) => setSort((s) => ({ key, desc: s.key === key ? !s.desc : key !== "name" && key !== "status" }));
@@ -135,8 +136,8 @@ export function ProcessesPage() {
 
   return (
     <PageContainer
-      title="Processes"
-      subtitle={`${processes.processes.length} running · refreshed every 2 s · CPU as share of all logical processors`}
+      title={t("Processes")}
+      subtitle={t("{count} running · refreshed every 2 s · CPU as share of all logical processors", { count: processes.processes.length })}
       actions={
         <label className="search-field">
           <Search className="search-field__icon" aria-hidden="true" />
@@ -144,8 +145,8 @@ export function ProcessesPage() {
             ref={searchRef}
             className="search-field__input"
             type="search"
-            placeholder="Search processes…"
-            aria-label="Search processes by name or PID"
+            placeholder={t("Search processes…")}
+            aria-label={t("Search processes by name or PID")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -169,7 +170,7 @@ export function ProcessesPage() {
                         aria-sort={active ? (sort.desc ? "descending" : "ascending") : "none"}
                       >
                         <button type="button" className={`data-table__sort${active ? " data-table__sort--active" : ""}`} onClick={() => toggleSort(c.key)}>
-                          {c.label}
+                          {t(c.label)}
                           {active && <Icon className="data-table__sort-icon" aria-hidden="true" />}
                         </button>
                       </th>
@@ -209,14 +210,14 @@ export function ProcessesPage() {
                           </span>
                         )}
                       </td>
-                      <td className="is-numeric data-table__mono" title={p.memoryBytes == null ? "Access denied" : undefined}>{p.memoryBytes == null ? "n/a" : formatBytes(p.memoryBytes)}</td>
+                      <td className="is-numeric data-table__mono" title={p.memoryBytes == null ? t("Access denied") : undefined}>{p.memoryBytes == null ? t("n/a") : formatBytes(p.memoryBytes)}</td>
                       <td><StatusCell status={p.status} /></td>
                     </tr>
                   );
                 })}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={COLUMNS.length} className="data-table__empty">No process matches “{query}”.</td>
+                    <td colSpan={COLUMNS.length} className="data-table__empty">{t("No process matches “{query}”.", { query })}</td>
                   </tr>
                 )}
               </tbody>
@@ -224,11 +225,11 @@ export function ProcessesPage() {
           </div>
         </div>
 
-        <aside className="panel processes__detail" aria-label="Process details">
+        <aside className="panel processes__detail" aria-label={t("Process details")}>
           {!selected ? (
-            <EmptyState icon={Info} compact>Select a process to see its details.</EmptyState>
+            <EmptyState icon={Info} compact>{t("Select a process to see its details.")}</EmptyState>
           ) : !current ? (
-            <EmptyState icon={Info} compact>The selected process has exited.</EmptyState>
+            <EmptyState icon={Info} compact>{t("The selected process has exited.")}</EmptyState>
           ) : (
             <>
               <div className="panel__header">
@@ -239,16 +240,16 @@ export function ProcessesPage() {
                 single
                 items={[
                   ["PID", <span className="u-mono">{current.pid}</span>],
-                  ["Parent PID", current.parentPid != null ? <span className="u-mono">{current.parentPid}</span> : null],
+                  [t("Parent PID"), current.parentPid != null ? <span className="u-mono">{current.parentPid}</span> : null],
                   ["CPU", current.cpuPercent == null ? null : <span className="u-mono">{formatPercent(current.cpuPercent)}</span>],
-                  ["Memory (working set)", current.memoryBytes == null ? null : <span className="u-mono">{formatBytes(current.memoryBytes, 2)}</span>],
-                  ["Started", current.startTime > 0 ? new Date(current.startTime * 1000).toLocaleString() : null],
-                  ["Executable", current.exe ? <span className="processes__path">{current.exe}</span> : <span className="metric-value metric-value--missing">Access denied or unavailable</span>],
+                  [t("Memory (working set)"), current.memoryBytes == null ? null : <span className="u-mono">{formatBytes(current.memoryBytes, 2)}</span>],
+                  [t("Started"), current.startTime > 0 ? new Date(current.startTime * 1000).toLocaleString() : null],
+                  [t("Executable"), current.exe ? <span className="processes__path">{current.exe}</span> : <span className="metric-value metric-value--missing">{t("Access denied or unavailable")}</span>],
                 ]}
               />
               <ProcessActions key={current.pid} p={current} />
               <button type="button" className="button button--danger processes__end" onClick={() => askKill(current)}>
-                <XCircle className="button__icon" aria-hidden="true" /> End process
+                <XCircle className="button__icon" aria-hidden="true" /> {t("End process")}
               </button>
             </>
           )}
@@ -256,14 +257,14 @@ export function ProcessesPage() {
       </div>
 
       <dialog ref={dialogRef} className="confirm-dialog" aria-labelledby="kill-title" onClose={() => setToKill(null)}>
-        <h2 id="kill-title" className="confirm-dialog__title">End {toKill?.name}?</h2>
+        <h2 id="kill-title" className="confirm-dialog__title">{t("End {name}?", { name: toKill?.name ?? "" })}</h2>
         <p className="confirm-dialog__text">
-          PID {toKill?.pid}. Unsaved work in this program will be lost. Ending a system process can make Windows unstable.
+          {t("PID {pid}. Unsaved work in this program will be lost. Ending a system process can make Windows unstable.", { pid: toKill?.pid ?? "" })}
         </p>
-        {killError && <p className="confirm-dialog__error" role="alert">{killError}</p>}
+        {killError && <p className="confirm-dialog__error" role="alert">{t(killError)}</p>}
         <div className="confirm-dialog__actions">
-          <button type="button" className="button button--secondary" autoFocus onClick={() => dialogRef.current?.close()}>Cancel</button>
-          <button type="button" className="button button--danger" onClick={confirmKill}>End process</button>
+          <button type="button" className="button button--secondary" autoFocus onClick={() => dialogRef.current?.close()}>{t("Cancel")}</button>
+          <button type="button" className="button button--danger" onClick={confirmKill}>{t("End process")}</button>
         </div>
       </dialog>
     </PageContainer>
