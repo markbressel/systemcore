@@ -1,7 +1,8 @@
-import { PictureInPicture2 } from "lucide-react";
-import { useId, type ReactNode } from "react";
+import { disable as disableAutostart, enable as enableAutostart, isEnabled as autostartEnabled } from "@tauri-apps/plugin-autostart";
+import { BellRing, PictureInPicture2, Power } from "lucide-react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { PageContainer } from "../../components/layout/PageContainer";
-import { toggleOverlayWindow, updateOverlay, useOverlayOpen, useSettings } from "../../stores/settings";
+import { toggleOverlayWindow, updateOverlay, updateSettings, useOverlayOpen, useSettings, type AlertSettings, type OverlayRow } from "../../stores/settings";
 import { CORNERS } from "../overlay/placement";
 
 function Switch({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
@@ -24,24 +25,108 @@ function SettingRow({ title, hint, control, disabled }: { title: string; hint: s
   );
 }
 
+function Section({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+  return (
+    <section className="panel settings">
+      <div className="panel__header">
+        <h2 className="panel__title">
+          {icon} {title}
+        </h2>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Check({ label, checked, onChange, disabled }: { label: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+  const id = useId();
+  return (
+    <label className="checkbox" htmlFor={id}>
+      <input id={id} type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      {label}
+    </label>
+  );
+}
+
+function Limit({ label, unit, value, min, max, disabled, onChange }: { label: string; unit: string; value: number; min: number; max: number; disabled: boolean; onChange: (v: number) => void }) {
+  return (
+    <label className="number-field">
+      <input
+        type="number"
+        aria-label={label}
+        min={min}
+        max={max}
+        // Commit on blur/Enter, not per keystroke, so typing "85" doesn't pass through a clamped "8".
+        key={value}
+        defaultValue={value}
+        disabled={disabled}
+        onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+        onBlur={(e) => {
+          const n = Math.round(Number(e.target.value));
+          // Clamp so a typo can't silence an alert (900 °C) or fire it constantly (5 %).
+          if (e.target.value === "" || !Number.isFinite(n)) e.target.value = String(value);
+          else {
+            const clamped = Math.min(max, Math.max(min, n));
+            e.target.value = String(clamped);
+            onChange(clamped);
+          }
+        }}
+      />
+      <span>{unit}</span>
+    </label>
+  );
+}
+
+const ROWS: { id: OverlayRow; label: string }[] = [
+  { id: "cpu", label: "CPU" },
+  { id: "gpu", label: "GPU" },
+  { id: "ram", label: "RAM" },
+  { id: "net", label: "Network" },
+];
+
 export function SettingsPage() {
-  const { overlay: o } = useSettings();
+  const { overlay: o, startup, alerts } = useSettings();
   const open = useOverlayOpen();
-  const lockId = useId();
+  // Autostart lives in the Windows registry, not in our settings; read it back after each change.
+  const [autostart, setAutostart] = useState<boolean | null>(null);
+  useEffect(() => {
+    autostartEnabled().then(setAutostart).catch(() => setAutostart(null));
+  }, []);
+  const toggleAutostart = async (on: boolean) => {
+    try {
+      await (on ? enableAutostart() : disableAutostart());
+      setAutostart(await autostartEnabled());
+    } catch {
+      setAutostart(null);
+    }
+  };
+  const setAlert = (patch: Partial<AlertSettings>) => updateSettings("alerts", patch);
 
   return (
     <PageContainer title="Settings" subtitle="Saved on this PC. Changes apply immediately.">
-      <section className="panel settings">
-        <div className="panel__header">
-          <h2 className="panel__title">
-            <PictureInPicture2 className="panel__icon" aria-hidden="true" /> Overlay
-          </h2>
-        </div>
-
+      <Section icon={<PictureInPicture2 className="panel__icon" aria-hidden="true" />} title="Overlay">
         <SettingRow
           title="Show overlay"
-          hint="Small always-on-top window with CPU, GPU, RAM and network. Visible over windowed and borderless games."
+          hint="Small always-on-top window, visible over windowed and borderless games. Shortcut: Ctrl+Shift+O."
           control={<Switch label="Show overlay" checked={open} onChange={() => void toggleOverlayWindow()} />}
+        />
+
+        <SettingRow
+          title="Readings"
+          hint="Choose what the overlay shows."
+          control={
+            <div className="check-group">
+              {ROWS.map((r) => (
+                <Check key={r.id} label={r.label} checked={o.rows[r.id]} onChange={(on) => updateOverlay({ rows: { ...o.rows, [r.id]: on } })} />
+              ))}
+            </div>
+          }
+        />
+
+        <SettingRow
+          title="Compact layout"
+          hint="A single slim line instead of the card: usage and temperature only."
+          control={<Switch label="Compact layout" checked={o.compact} onChange={(compact) => updateOverlay({ compact })} />}
         />
 
         <SettingRow
@@ -96,14 +181,59 @@ export function SettingsPage() {
           title="Lock position"
           hint="Keeps the overlay where you dragged it, so it can't be moved by accident."
           disabled={!o.freeMove}
-          control={
-            <label className="checkbox" htmlFor={lockId}>
-              <input id={lockId} type="checkbox" checked={o.locked} disabled={!o.freeMove} onChange={(e) => updateOverlay({ locked: e.target.checked })} />
-              Locked
-            </label>
-          }
+          control={<Check label="Locked" checked={o.locked} disabled={!o.freeMove} onChange={(locked) => updateOverlay({ locked })} />}
         />
-      </section>
+      </Section>
+
+      <Section icon={<Power className="panel__icon" aria-hidden="true" />} title="Startup & tray">
+        <SettingRow
+          title="Start with Windows"
+          hint={autostart == null ? "Could not read the Windows startup setting." : "Launch SystemCore when you sign in."}
+          control={<Switch label="Start with Windows" checked={autostart ?? false} disabled={autostart == null} onChange={(on) => void toggleAutostart(on)} />}
+        />
+        <SettingRow
+          title="Start in the tray"
+          hint="When started with Windows, stay in the notification area instead of opening the window."
+          disabled={!autostart}
+          control={<Switch label="Start in the tray" checked={startup.startHidden} disabled={!autostart} onChange={(startHidden) => updateSettings("startup", { startHidden })} />}
+        />
+        <SettingRow
+          title="Open overlay on start"
+          hint="Show the overlay every time SystemCore starts."
+          control={<Switch label="Open overlay on start" checked={startup.overlayAtStartup} onChange={(overlayAtStartup) => updateSettings("startup", { overlayAtStartup })} />}
+        />
+        <SettingRow
+          title="Keep running in the tray"
+          hint="Closing the window hides SystemCore to the tray (alerts and overlay keep working). Quit from the tray icon."
+          control={<Switch label="Keep running in the tray" checked={startup.closeToTray} onChange={(closeToTray) => updateSettings("startup", { closeToTray })} />}
+        />
+      </Section>
+
+      <Section icon={<BellRing className="panel__icon" aria-hidden="true" />} title="Alerts">
+        <SettingRow
+          title="Windows notifications"
+          hint="Notify once when a reading reaches its limit; it re-arms after dropping 5 below."
+          control={<Switch label="Alert notifications" checked={alerts.enabled} onChange={(enabled) => setAlert({ enabled })} />}
+        />
+        <SettingRow
+          title="CPU temperature"
+          hint="Needs LibreHardwareMonitor running for CPU temperature."
+          disabled={!alerts.enabled}
+          control={<Limit label="CPU temperature limit" unit="°C" min={50} max={110} value={alerts.cpuTempC} disabled={!alerts.enabled} onChange={(cpuTempC) => setAlert({ cpuTempC })} />}
+        />
+        <SettingRow
+          title="GPU temperature"
+          hint="NVIDIA GPUs only for now."
+          disabled={!alerts.enabled}
+          control={<Limit label="GPU temperature limit" unit="°C" min={50} max={110} value={alerts.gpuTempC} disabled={!alerts.enabled} onChange={(gpuTempC) => setAlert({ gpuTempC })} />}
+        />
+        <SettingRow
+          title="Memory usage"
+          hint="Share of physical RAM in use."
+          disabled={!alerts.enabled}
+          control={<Limit label="Memory usage limit" unit="%" min={50} max={99} value={alerts.ramPercent} disabled={!alerts.enabled} onChange={(ramPercent) => setAlert({ ramPercent })} />}
+        />
+      </Section>
     </PageContainer>
   );
 }

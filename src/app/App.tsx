@@ -10,6 +10,7 @@ import { ProcessesPage } from "../features/processes/ProcessesPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { SpeedTestPage } from "../features/speedtest/SpeedTestPage";
 import { StoragePage } from "../features/storage/StoragePage";
+import { startAppSettings } from "../stores/settings";
 import { startTelemetry } from "../stores/telemetry";
 import { startUpdateChecks } from "../stores/update";
 
@@ -21,6 +22,7 @@ export function App() {
 
   useEffect(startTelemetry, []);
   useEffect(startUpdateChecks, []);
+  useEffect(startAppSettings, []);
 
   const openPerformance = (tab: PerfTab) => {
     setPerfTab(tab);

@@ -53,49 +53,62 @@ pub fn kill_process(pid: u32, start_time: u64) -> Result<(), String> {
     }
 }
 
-/// Opens or closes the always-on-top mini overlay. Async: creating a window from a sync command deadlocks on Windows.
-#[tauri::command]
-pub async fn toggle_overlay(app: tauri::AppHandle) -> Result<bool, String> {
-    if let Some(w) = app.get_webview_window("overlay") {
-        w.close().map_err(|e| e.to_string())?;
-        return Ok(false);
+/// Opens (`Some(true)`), closes (`Some(false)`) or toggles (`None`) the always-on-top overlay.
+/// Every path (UI, tray, hotkey) goes through here, so the UI hears one `overlay:changed` event.
+/// Must not run on the main thread: creating a window there deadlocks on Windows.
+pub fn overlay(app: &tauri::AppHandle, open: Option<bool>) -> Result<bool, String> {
+    let existing = app.get_webview_window("overlay");
+    let want = open.unwrap_or(existing.is_none());
+    match (existing, want) {
+        (Some(w), false) => w.close().map_err(|e| e.to_string())?,
+        (None, true) => {
+            tauri::WebviewWindowBuilder::new(app, "overlay", tauri::WebviewUrl::default())
+                .title("SystemCore overlay")
+                .inner_size(270.0, 218.0)
+                .position(16.0, 16.0)
+                .transparent(true)
+                .shadow(false)
+                .always_on_top(true)
+                .decorations(false)
+                .resizable(false)
+                .skip_taskbar(true)
+                .focused(false)
+                .build()
+                .map_err(|e| e.to_string())?;
+        }
+        _ => {}
     }
-    tauri::WebviewWindowBuilder::new(&app, "overlay", tauri::WebviewUrl::default())
-        .title("SystemCore overlay")
-        .inner_size(270.0, 218.0)
-        .position(16.0, 16.0)
-        .transparent(true)
-        .shadow(false)
-        .always_on_top(true)
-        .decorations(false)
-        .resizable(false)
-        .skip_taskbar(true)
-        .focused(false)
-        .build()
-        .map_err(|e| e.to_string())?;
-    Ok(true)
+    let _ = app.emit("overlay:changed", want);
+    Ok(want)
 }
 
-/// The overlay's own close button. If the main window is hidden, nothing would be left on screen, so quit.
 #[tauri::command]
-pub async fn close_overlay(app: tauri::AppHandle) -> Result<(), String> {
-    let main_visible = app.get_webview_window("main").is_some_and(|m| m.is_visible().unwrap_or(false));
-    if !main_visible {
-        app.exit(0);
-        return Ok(());
-    }
-    if let Some(w) = app.get_webview_window("overlay") {
-        w.close().map_err(|e| e.to_string())?;
-    }
-    let _ = app.emit("overlay:closed", ());
-    Ok(())
+pub async fn set_overlay(app: tauri::AppHandle, open: Option<bool>) -> Result<bool, String> {
+    overlay(&app, open)
 }
 
-/// Brings the main window back (it is hidden, not closed, while the overlay runs).
-#[tauri::command]
-pub fn show_main(app: tauri::AppHandle) -> Result<(), String> {
+/// Brings the main window back (it is hidden, not closed, while running in the tray).
+pub fn show_main_window(app: &tauri::AppHandle) -> Result<(), String> {
     let main = app.get_webview_window("main").ok_or("Main window is missing.")?;
     let _ = main.unminimize();
     main.show().map_err(|e| e.to_string())?;
     main.set_focus().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn show_main(app: tauri::AppHandle) -> Result<(), String> {
+    show_main_window(&app)
+}
+
+/// Launched by Windows autostart (the UI then decides whether to stay in the tray).
+#[tauri::command]
+pub fn launched_at_login() -> bool {
+    std::env::args().any(|a| a == crate::AUTOSTART_ARG)
+}
+
+#[tauri::command]
+pub fn set_prefs(prefs: crate::prefs::Prefs, state: tauri::State<'_, crate::prefs::SharedPrefs>) {
+    if let Ok(mut p) = state.lock() {
+        *p = prefs;
+    }
 }

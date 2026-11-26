@@ -131,6 +131,33 @@
     font-size: $font-xs;
   }
 
+  // Short windows: tighten the brand and rows so every page fits without scrolling.
+  @media (max-height: 900px) {
+    &__brand {
+      flex-direction: row;
+      justify-content: center;
+      padding: $space-4 $space-4 $space-3;
+    }
+
+    &__logo {
+      width: 36px;
+      height: 36px;
+    }
+
+    &__section {
+      margin-bottom: $space-3;
+    }
+
+    &__item {
+      min-height: 42px;
+    }
+
+    &__footer {
+      padding-top: $space-2;
+      padding-bottom: $space-3;
+    }
+  }
+
   // Collapsed rail: icons only, labels stay available as aria-label / title.
   @include below($bp-compact) {
     &__brand {

@@ -36,8 +36,10 @@ No administrator rights, no drivers, no background services.
 | **Storage** | Every volume with capacity, live read/write speed and drive health. Windows notification if a drive's health gets worse. |
 | **Network** | Total and per-adapter download/upload rates with history. |
 | **Speed Test** | Ping, jitter, download and upload against Cloudflare's global network. Runs only when you press start. |
-| **Overlay** | Small always-on-top window with CPU, GPU, RAM and network for gaming. |
-| **Settings** | Overlay placement: pinned to a corner, or dragged freely and locked in place. |
+| **Overlay** | Small always-on-top window with CPU, GPU, RAM and network for gaming. `Ctrl+Shift+O` shows or hides it from anywhere. |
+| **Settings** | Overlay readings, size, compact layout and placement; start with Windows; keep running in the tray. |
+| **Alerts** | Optional Windows notification when CPU or GPU temperature or RAM usage reaches your limit. |
+| **Tray** | SystemCore keeps running in the notification area: open it, toggle the overlay or quit from the tray icon. |
 | **Updates** | An **Update** button appears when a new version is out. One click downloads, installs and restarts. |
 
 ## Screenshots
@@ -57,9 +59,10 @@ No administrator rights, no drivers, no background services.
 
 <img src="docs/screenshots/overlay.png" alt="SystemCore overlay" width="270" align="right" />
 
-Turn it on from the top bar (**Overlay**) or from **Settings**.
+Turn it on from the top bar (**Overlay**), the tray icon, **Settings**, or with `Ctrl+Shift+O`.
 
 - CPU load and clock, GPU load, temperature, VRAM and power draw, RAM usage and live network rates.
+- **Readings and size**: pick CPU, GPU, RAM and network, scale it 75–150 %, or switch to a single-line **compact** layout.
 - **Fixed position**: pin it to any corner of the screen. It respects the taskbar.
 - **Free positioning**: drag it anywhere, then tick **Locked** so it stays put, even after a restart.
 

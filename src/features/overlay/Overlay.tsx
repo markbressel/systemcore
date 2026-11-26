@@ -1,17 +1,13 @@
 import { currentMonitor, getCurrentWindow, LogicalSize, PhysicalPosition } from "@tauri-apps/api/window";
 import { AppWindow, ArrowDown, ArrowUp, Lock, Move, X } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import logo from "../../assets/logo.png";
 import { formatBytes, formatRate } from "../../lib/format";
-import { closeOverlay, showMain } from "../../lib/tauri";
+import { setOverlay, showMain } from "../../lib/tauri";
 import { updateOverlay, useSettings } from "../../stores/settings";
 import { startTelemetry, useTelemetry } from "../../stores/telemetry";
 import type { Metric } from "../../types/telemetry";
 import { cornerPosition } from "./placement";
-
-// Card size at 100 %; the window is resized to this times the user's scale.
-const BASE_WIDTH = 270;
-const BASE_HEIGHT = 218;
 
 const v = (m: Metric<number> | undefined) => (m?.status === "available" ? m.value : null);
 const temp = (c: number | null) => (c == null ? null : <span className={c >= 85 ? "overlay__hot" : undefined}>{c.toFixed(0)}°C</span>);
@@ -41,6 +37,16 @@ function Row({ label, tone, percent, details }: RowProps) {
   );
 }
 
+function Chip({ label, tone, percent, extra }: { label: string; tone: RowProps["tone"]; percent: number | null; extra?: ReactNode }) {
+  return (
+    <span className={`overlay__chip overlay__row--${tone}`}>
+      <b className="overlay__label">{label}</b>
+      <span className="overlay__value">{percent == null ? "—" : `${percent.toFixed(0)}%`}</span>
+      {extra != null && <span className="overlay__extra">{extra}</span>}
+    </span>
+  );
+}
+
 /** Frameless always-on-top mini window. Placement comes from Settings → Overlay. */
 export function Overlay() {
   useEffect(startTelemetry, []);
@@ -48,22 +54,36 @@ export function Overlay() {
   const { overlay: o } = useSettings();
   const movable = o.freeMove && !o.locked;
 
-  // Size and place the window when scale, mode or corner change (not on every saved drag position).
+  const root = useRef<HTMLElement>(null);
+  const rowsKey = Object.values(o.rows).join();
+
+  // The window follows the card: resize to its rendered size, then place it. Re-runs when the card's
+  // content size changes (rows, compact, values) and when scale, mode or corner change.
   useEffect(() => {
+    const el = root.current;
+    if (!el) return;
     const win = getCurrentWindow();
-    (async () => {
-      await win.setSize(new LogicalSize(Math.round(BASE_WIDTH * o.scale), Math.round(BASE_HEIGHT * o.scale)));
-      if (o.freeMove) {
-        if (o.position) await win.setPosition(new PhysicalPosition(o.position.x, o.position.y));
-        return;
-      }
-      const m = await currentMonitor();
-      if (!m) return;
-      const area = { ...m.workArea.position, ...m.workArea.size };
-      const { x, y } = cornerPosition(o.corner, area, await win.outerSize(), Math.round(16 * m.scaleFactor));
-      await win.setPosition(new PhysicalPosition(x, y));
-    })().catch(() => {});
-  }, [o.freeMove, o.corner, o.scale]);
+    let busy = Promise.resolve();
+    const place = () =>
+      (busy = busy.then(async () => {
+        const r = el.getBoundingClientRect();
+        await win.setSize(new LogicalSize(Math.ceil(r.width), Math.ceil(r.height)));
+        if (o.freeMove) {
+          if (o.position) await win.setPosition(new PhysicalPosition(o.position.x, o.position.y));
+          return;
+        }
+        const m = await currentMonitor();
+        if (!m) return;
+        const area = { ...m.workArea.position, ...m.workArea.size };
+        const { x, y } = cornerPosition(o.corner, area, await win.outerSize(), Math.round(16 * m.scaleFactor));
+        await win.setPosition(new PhysicalPosition(x, y));
+      }).catch(() => {}));
+    void place();
+    const ro = new ResizeObserver(() => void place());
+    ro.observe(el);
+    return () => ro.disconnect();
+    // o.position is deliberately not a dependency: re-placing on every saved drag would fight the drag.
+  }, [o.freeMove, o.corner, o.scale, o.compact, rowsKey]);
 
   // Remember where the user dragged it.
   useEffect(() => {
@@ -87,49 +107,81 @@ export function Overlay() {
   const rx = v(system?.network.rxBytesPerSec);
   const tx = v(system?.network.txBytesPerSec);
 
+  const rows = o.rows;
+  const actions = (
+    // Shown on hover; mousedown must not start a window drag.
+    <span className="overlay__actions" onMouseDown={(e) => e.stopPropagation()}>
+      <button type="button" className="overlay__action" title="Open SystemCore" aria-label="Open SystemCore" onClick={() => void showMain()}>
+        <AppWindow aria-hidden="true" />
+      </button>
+      <button type="button" className="overlay__action" title="Close overlay" aria-label="Close overlay" onClick={() => void setOverlay(false)}>
+        <X aria-hidden="true" />
+      </button>
+    </span>
+  );
+  const live = <span className={`overlay__live${stale || !system ? " overlay__live--off" : ""}`} title={stale ? "Data stale" : "Live"} />;
+  const modeIcon = movable ? <Move className="overlay__mode" aria-label="Drag to move" /> : o.freeMove ? <Lock className="overlay__mode" aria-label="Position locked" /> : null;
+  const rateText = (r: number | null) => (r == null ? "—" : formatRate(r));
+
   return (
     <main
-      className={`overlay${movable ? " overlay--movable" : ""}`}
+      ref={root}
+      className={`overlay${o.compact ? " overlay--compact" : ""}${movable ? " overlay--movable" : ""}`}
       style={{ zoom: o.scale }}
       onMouseDown={(e) => {
         if (movable && e.button === 0) void getCurrentWindow().startDragging();
       }}
     >
-      <header className="overlay__head">
-        <img className="overlay__logo" src={logo} alt="" />
-        <span className="overlay__brand">
-          SYSTEM<b>CORE</b>
-        </span>
-        {movable ? <Move className="overlay__mode" aria-label="Drag to move" /> : o.freeMove ? <Lock className="overlay__mode" aria-label="Position locked" /> : null}
-        <span className={`overlay__live${stale || !system ? " overlay__live--off" : ""}`} title={stale ? "Data stale" : "Live"} />
-        {/* Shown on hover; mousedown must not start a window drag. */}
-        <span className="overlay__actions" onMouseDown={(e) => e.stopPropagation()}>
-          <button type="button" className="overlay__action" title="Open SystemCore" aria-label="Open SystemCore" onClick={() => void showMain()}>
-            <AppWindow aria-hidden="true" />
-          </button>
-          <button type="button" className="overlay__action" title="Close overlay" aria-label="Close overlay" onClick={() => void closeOverlay()}>
-            <X aria-hidden="true" />
-          </button>
-        </span>
-      </header>
+      {o.compact ? (
+        <>
+          <img className="overlay__logo" src={logo} alt="" />
+          {live}
+          {rows.cpu && <Chip label="CPU" tone="cpu" percent={v(cpu?.usagePercent)} extra={temp(v(cpu?.temperatureC))} />}
+          {rows.gpu && <Chip label="GPU" tone="gpu" percent={v(gpu?.usagePercent)} extra={temp(v(gpu?.temperatureC))} />}
+          {rows.ram && <Chip label="RAM" tone="memory" percent={v(mem?.usagePercent)} />}
+          {rows.net && (
+            <span className="overlay__chip overlay__chip--net">
+              <ArrowDown aria-hidden="true" /> {rateText(rx)} <ArrowUp aria-hidden="true" /> {rateText(tx)}
+            </span>
+          )}
+          {modeIcon}
+          {actions}
+        </>
+      ) : (
+        <>
+          <header className="overlay__head">
+            <img className="overlay__logo" src={logo} alt="" />
+            <span className="overlay__brand">
+              SYSTEM<b>CORE</b>
+            </span>
+            {modeIcon}
+            {live}
+            {actions}
+          </header>
 
-      <Row label="CPU" tone="cpu" percent={v(cpu?.usagePercent)} details={[temp(v(cpu?.temperatureC)), ghz == null ? null : `${(ghz / 1000).toFixed(2)} GHz`]} />
-      <Row
-        label="GPU"
-        tone="gpu"
-        percent={v(gpu?.usagePercent)}
-        details={[temp(v(gpu?.temperatureC)), usedOf(v(gpu?.vramUsedBytes), v(gpu?.vramTotalBytes)), watts == null ? null : `${watts.toFixed(0)} W`]}
-      />
-      <Row label="RAM" tone="memory" percent={v(mem?.usagePercent)} details={[usedOf(v(mem?.usedBytes), v(mem?.totalBytes))]} />
+          {rows.cpu && <Row label="CPU" tone="cpu" percent={v(cpu?.usagePercent)} details={[temp(v(cpu?.temperatureC)), ghz == null ? null : `${(ghz / 1000).toFixed(2)} GHz`]} />}
+          {rows.gpu && (
+            <Row
+              label="GPU"
+              tone="gpu"
+              percent={v(gpu?.usagePercent)}
+              details={[temp(v(gpu?.temperatureC)), usedOf(v(gpu?.vramUsedBytes), v(gpu?.vramTotalBytes)), watts == null ? null : `${watts.toFixed(0)} W`]}
+            />
+          )}
+          {rows.ram && <Row label="RAM" tone="memory" percent={v(mem?.usagePercent)} details={[usedOf(v(mem?.usedBytes), v(mem?.totalBytes))]} />}
 
-      <footer className="overlay__net">
-        <span>
-          <ArrowDown aria-hidden="true" /> {rx == null ? "—" : formatRate(rx)}
-        </span>
-        <span>
-          <ArrowUp aria-hidden="true" /> {tx == null ? "—" : formatRate(tx)}
-        </span>
-      </footer>
+          {rows.net && (
+            <footer className="overlay__net">
+              <span>
+                <ArrowDown aria-hidden="true" /> {rateText(rx)}
+              </span>
+              <span>
+                <ArrowUp aria-hidden="true" /> {rateText(tx)}
+              </span>
+            </footer>
+          )}
+        </>
+      )}
     </main>
   );
 }

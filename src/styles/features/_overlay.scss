@@ -12,15 +12,61 @@ html:has(.overlay) body {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  // Fixed card size; the component zooms it and resizes the window to match.
+  // Fixed width, content height; the component zooms it and sizes the window to match.
   width: 270px;
-  height: 218px;
+  height: max-content;
   padding: 10px 12px;
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border);
   border-radius: $radius-xl;
   user-select: none;
   cursor: default;
+
+  // One slim line: logo, live dot, a chip per reading.
+  &--compact {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    width: max-content;
+    padding: 6px 10px;
+    border-radius: $radius-lg;
+  }
+
+  &__chip {
+    @include mono-num;
+    --tone: var(--color-chart-cpu);
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+    white-space: nowrap;
+    font-size: 12px;
+
+    .overlay__value {
+      min-width: 32px;
+      text-align: left;
+      font-size: 13px;
+    }
+
+    &--net {
+      align-items: center;
+      gap: 3px;
+      color: var(--color-text-secondary);
+      font-size: 11px;
+
+      svg {
+        width: 11px;
+        height: 11px;
+      }
+
+      svg:first-child { color: var(--color-chart-download); }
+      svg:last-of-type { color: var(--color-chart-upload); }
+    }
+  }
+
+  &__extra {
+    color: var(--color-text-secondary);
+    font-size: 11px;
+  }
 
   &--movable {
     border: 1px dashed var(--color-accent);

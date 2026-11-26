@@ -1,6 +1,7 @@
 @use "../abstracts" as *;
 
 .settings {
+  flex: none;
   max-width: 820px;
   gap: 0;
 
@@ -138,5 +139,38 @@
     &--top-right { top: 5px; right: 5px; }
     &--bottom-left { bottom: 5px; left: 5px; }
     &--bottom-right { bottom: 5px; right: 5px; }
+  }
+}
+
+.check-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-4;
+}
+
+.number-field {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-2;
+  color: var(--color-text-secondary);
+
+  input {
+    @include mono-num;
+    width: 72px;
+    padding: $space-2 $space-3;
+    color: var(--color-text-primary);
+    text-align: right;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: $radius-md;
+
+    &:focus-visible {
+      @include focus-ring;
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
   }
 }

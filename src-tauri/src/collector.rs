@@ -3,6 +3,7 @@
 
 use crate::domain::*;
 use crate::platform::windows as win;
+use crate::prefs::{Alerts, SharedPrefs};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -393,7 +394,7 @@ fn store(shared: &Shared, f: impl FnOnce(&mut Latest)) {
     }
 }
 
-pub fn spawn(app: AppHandle, shared: Shared) {
+pub fn spawn(app: AppHandle, shared: Shared, prefs: SharedPrefs) {
     std::thread::Builder::new()
         .name("telemetry-collector".into())
         .spawn(move || {
@@ -405,6 +406,7 @@ pub fn spawn(app: AppHandle, shared: Shared) {
                     return;
                 }
             };
+            let mut alerts = Alerts::default();
             loop {
                 let started = Instant::now();
                 let now = now_ms();
@@ -442,6 +444,11 @@ pub fn spawn(app: AppHandle, shared: Shared) {
                     process_count: c.process_count.clone(),
                     sampled_at: now,
                 };
+                if let Some(a) = prefs.lock().ok().map(|p| p.alerts.clone()) {
+                    for body in alerts.check(&a, &snap) {
+                        let _ = app.notification().builder().title("SystemCore alert").body(body).show();
+                    }
+                }
                 store(&shared, |l| l.system = Some(snap.clone()));
                 // Events are latest-value only: the UI replaces state, so no backlog can build up.
                 let _ = app.emit("telemetry:system", snap);
