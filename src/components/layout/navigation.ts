@@ -1,4 +1,4 @@
-import { Activity, CircuitBoard, Flame, Gauge, HardDrive, History, Keyboard, LayoutDashboard, Lightbulb, List, Monitor, Network, Rocket, Settings, type LucideIcon } from "lucide-react";
+import { Activity, CircuitBoard, Flame, Gauge, HardDrive, History, Info, Keyboard, LayoutDashboard, Lightbulb, List, Monitor, Network, Newspaper, PackageCheck, Swords, Rocket, Settings, type LucideIcon } from "lucide-react";
 
 export interface NavPage {
   id: PageId;
@@ -6,7 +6,7 @@ export interface NavPage {
   icon: LucideIcon;
 }
 
-export type PageId = "overview" | "performance" | "history" | "processes" | "hardware" | "storage" | "network" | "lighting" | "peripherals" | "display" | "speedtest" | "benchmark" | "startup" | "settings";
+export type PageId = "overview" | "performance" | "history" | "processes" | "hardware" | "storage" | "network" | "lighting" | "peripherals" | "display" | "speedtest" | "benchmark" | "startup" | "updater" | "loadout" | "news" | "settings" | "about";
 
 export const NAV_SECTIONS: { title: string; pages: NavPage[] }[] = [
   {
@@ -35,11 +35,17 @@ export const NAV_SECTIONS: { title: string; pages: NavPage[] }[] = [
       { id: "speedtest", label: "Speed Test", icon: Gauge },
       { id: "benchmark", label: "Benchmark", icon: Flame },
       { id: "startup", label: "Startup Apps", icon: Rocket },
+      { id: "updater", label: "Updater", icon: PackageCheck },
+      { id: "loadout", label: "Loadout", icon: Swords },
     ],
   },
   {
     title: "App",
-    pages: [{ id: "settings", label: "Settings", icon: Settings }],
+    pages: [
+      { id: "news", label: "News", icon: Newspaper },
+      { id: "settings", label: "Settings", icon: Settings },
+      { id: "about", label: "About", icon: Info },
+    ],
   },
 ];
 

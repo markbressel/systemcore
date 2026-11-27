@@ -2,7 +2,12 @@
 //! - Windows Dynamic Lighting (HID LampArray standard, Windows 11): any device that implements it.
 //! - Logitech HID++ 2.0 "Color LED effects" (0x8070) over USB: G-series mice and keyboards.
 //! - VIA raw HID (QMK keyboards: Keychron, GMMK, ...): RGB matrix / RGB light channels.
-//! - RAM on the motherboard SMBus (ENE controllers: T-Force, Trident Z, ...) through PawnIO; needs an elevated app.
+//! - RAM on the motherboard SMBus (ENE controllers: T-Force, Trident Z, ADATA XPG Spectrix, ...) through PawnIO;
+//!   needs an elevated app.
+//! - Vendor modules (one file each): Razer Chroma; ASRock Polychrome (USB, older boards over SMBus);
+//!   Gigabyte RGB Fusion 2 (USB) and first-generation RGB Fusion (SMBus); Gigabyte and ASRock graphics cards
+//!   (allow-listed models only, through the NVIDIA/AMD driver's I2C).
+//!
 //! Every device is probed with read-only queries first; colors are only written to devices that answered.
 
 use hidapi::{HidApi, HidDevice};
@@ -49,7 +54,9 @@ struct Logi {
     /// HID++ device index: 0xFF wired, 1–6 behind a Lightspeed/Unifying receiver.
     index: u8,
     feature: u8,
-    /// (zone index, index of the zone's "fixed color" effect)
+    /// Which lighting feature: 0x8070 (Color LED effects) or 0x8071 (RGB effects, newer devices).
+    page: u16,
+    /// (zone / cluster index, index of its "fixed color" effect)
     zones: Vec<(u8, u8)>,
 }
 
@@ -107,12 +114,15 @@ pub fn set_color(id: &str, [r, g, b]: [u8; 3]) -> Result<(), String> {
     if let Some(l) = st.logi.get(id) {
         let api = HidApi::new().map_err(|e| e.to_string())?;
         let dev = api.open_path(&l.path).map_err(|e| e.to_string())?;
+        if l.page == 0x8071 {
+            // setSWControl [set, mode 3, flags 6]: the host may drive the effects while the firmware keeps rendering.
+            // A failure is not fatal: some firmware accepts effects without it.
+            let _ = hidpp(&dev, l.index, l.feature, 5, &[0x01, 0x03, 0x06]);
+        }
+        // 0x8070 setZoneEffect is function 3, 0x8071 setEffect function 1; same parameter layout.
+        let function = if l.page == 0x8071 { 1 } else { 3 };
         for &(zone, effect) in &l.zones {
-            // setZoneEffect: zone, effect index, R, G, B, 7 unused effect bytes, then 0x01 = apply now (not saved to onboard memory).
-            let mut p = [0u8; 13];
-            p[..5].copy_from_slice(&[zone, effect, r, g, b]);
-            p[12] = 0x01;
-            hidpp(&dev, l.index, l.feature, 3, &p)?;
+            hidpp(&dev, l.index, l.feature, function, &logi_static(zone, effect, [r, g, b]))?;
         }
         return Ok(());
     }
@@ -126,7 +136,16 @@ pub fn set_color(id: &str, [r, g, b]: [u8; 3]) -> Result<(), String> {
         let api = HidApi::new().map_err(|e| e.to_string())?;
         let dev = api.open_path(path).map_err(|e| e.to_string())?;
         let (h, s, v) = hsv(r, g, b);
-        // Solid color effect, then hue/saturation and brightness. Not saved to the keyboard's EEPROM.
+        // Not saved to the keyboard's EEPROM: the board's own setting returns after unplugging.
+        if via_single_color(*channel) {
+            // Single-color backlight: the color's brightness is all it can show (solid effect on LED matrix boards).
+            if *channel == 5 {
+                via(&dev, &[VIA_SET, *channel, VIA_EFFECT, 1])?;
+            }
+            via(&dev, &[VIA_SET, *channel, VIA_BRIGHTNESS, v])?;
+            return Ok(());
+        }
+        // Solid color effect, then hue/saturation and brightness.
         via(&dev, &[VIA_SET, *channel, VIA_EFFECT, 1])?;
         via(&dev, &[VIA_SET, *channel, VIA_COLOR, h, s])?;
         via(&dev, &[VIA_SET, *channel, VIA_BRIGHTNESS, v])?;
@@ -135,12 +154,74 @@ pub fn set_color(id: &str, [r, g, b]: [u8; 3]) -> Result<(), String> {
     Err("Unknown device; refresh the list".into())
 }
 
+// ---- input peripherals (names for the 3D views, RGB or not) ----
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Peripheral {
+    /// keyboard, mouse or headset
+    pub kind: &'static str,
+    pub name: String,
+    pub manufacturer: Option<String>,
+    pub vendor_id: u16,
+    pub product_id: u16,
+    /// Connected through a wireless receiver.
+    pub wireless: bool,
+}
+
+/// USB keyboards, mice and headsets with their product names (read-only enumeration, nothing is sent).
+pub fn peripherals() -> Vec<Peripheral> {
+    let Ok(api) = HidApi::new() else { return Vec::new() };
+    // One entry per physical device. Many devices expose several collections (a mouse with macro keys also
+    // looks like a keyboard), so the device's first interface decides, unless its name says otherwise.
+    let mut best: Vec<(i32, Peripheral)> = Vec::new();
+    for d in api.device_list() {
+        let usage_kind = match (d.usage_page(), d.usage()) {
+            (0x01, 0x06) => "keyboard",
+            (0x01, 0x02) => "mouse",
+            (0x0B, _) => "headset",
+            _ => continue,
+        };
+        let Some(name) = d.product_string().map(str::trim).filter(|n| !n.is_empty()) else { continue };
+        let lower = name.to_lowercase();
+        let kind = ["keyboard", "mouse", "headset"].into_iter().find(|k| lower.contains(k)).unwrap_or(usage_kind);
+        let p = Peripheral {
+            kind,
+            name: name.to_string(),
+            manufacturer: d.manufacturer_string().map(str::trim).filter(|m| !m.is_empty() && !m.starts_with('(')).map(String::from),
+            vendor_id: d.vendor_id(),
+            product_id: d.product_id(),
+            wireless: ["receiver", "wireless", "lightspeed", "dongle"].iter().any(|w| lower.contains(w)),
+        };
+        let iface = d.interface_number();
+        match best.iter_mut().find(|(_, b)| b.vendor_id == p.vendor_id && b.product_id == p.product_id) {
+            Some((i, b)) if iface >= 0 && (iface < *i || *i < 0) && !lower.contains(b.kind) => *b = p,
+            Some(_) => {}
+            None => best.push((iface, p)),
+        }
+    }
+    best.into_iter().map(|(_, p)| p).collect()
+}
+
 // ---- vendor modules ----
 
 fn list_vendor_modules(st: &mut State, out: &mut Vec<RgbDevice>) {
     let mut found = Vec::new();
     if let Ok(api) = HidApi::new() {
         found.extend(super::razer::detect(&api));
+        // Motherboard LED controllers; fans, coolers and strips on the board's RGB/ARGB headers follow them.
+        let mb = sysinfo::Motherboard::new().ok();
+        let board = mb.as_ref().and_then(|b| b.name()).unwrap_or_else(|| "Motherboard".into());
+        let vendor = mb.as_ref().and_then(|b| b.vendor_name()).unwrap_or_default();
+        found.extend(super::asrock::detect(&api, &board));
+        found.extend(super::gigabyte::detect(&api, &board));
+        // Graphics cards on the allow list (Gigabyte RGB Fusion 2, ASRock Radeon) through the driver's I2C.
+        found.extend(super::gpu_rgb::detect());
+        // Older boards without the USB controller: SMBus through PawnIO (elevated, never on DDR5).
+        if !found.iter().any(|f| f.kind == "motherboard") {
+            found.extend(super::asrock_smbus::detect(&vendor, &board));
+            found.extend(super::gigabyte_smbus::detect(&vendor, &board));
+        }
     }
     st.vendor.clear();
     for f in found {
@@ -251,7 +332,24 @@ fn device_name(dev: &HidDevice, index: u8) -> Option<String> {
     String::from_utf8(name).ok().filter(|n| !n.is_empty())
 }
 
-fn probe_logitech(dev: &HidDevice, index: u8) -> Option<(u8, Vec<(u8, u8)>)> {
+/// Finds the lighting feature and, per zone, the index of its "fixed color" effect (effect id 0x0001).
+/// Newer devices (G502 X, G915 X, G515, G203 LIGHTSYNC, ...) have 0x8071 RGB effects; older ones 0x8070.
+/// Only "get info" queries are sent here.
+/// (feature index, feature page 0x8070/0x8071, zones with their fixed-color effect)
+type LogiProbe = (u8, u16, Vec<(u8, u8)>);
+
+fn probe_logitech(dev: &HidDevice, index: u8) -> Option<LogiProbe> {
+    if let Some(f) = feature_index(dev, index, 0x8071) {
+        // getInfo [0xFF, 0xFF] -> cluster count at 2; [cluster, 0xFF] -> effect count at 4; [cluster, effect] -> id at 2–3.
+        let clusters = hidpp(dev, index, f, 0, &[0xFF, 0xFF, 0x00]).ok()?[2];
+        let zones: Vec<(u8, u8)> = (0..clusters)
+            .filter_map(|c| {
+                let effects = hidpp(dev, index, f, 0, &[c, 0xFF]).ok()?[4];
+                (0..effects).find(|&e| hidpp(dev, index, f, 0, &[c, e, 0, 0]).is_ok_and(|p| p[2] == 0x00 && p[3] == 0x01)).map(|e| (c, e))
+            })
+            .collect();
+        return (!zones.is_empty()).then_some((f, 0x8071, zones));
+    }
     let f = feature_index(dev, index, 0x8070)?;
     let zone_count = hidpp(dev, index, f, 0, &[]).ok()?[0];
     let mut zones = Vec::new();
@@ -264,13 +362,24 @@ fn probe_logitech(dev: &HidDevice, index: u8) -> Option<(u8, Vec<(u8, u8)>)> {
             zones.push((zone, e));
         }
     }
-    (!zones.is_empty()).then_some((f, zones))
+    (!zones.is_empty()).then_some((f, 0x8070, zones))
+}
+
+/// setZoneEffect / setEffect parameters for a fixed color: zone, effect index, R, G, B, the "fixed color" marker
+/// 0x02 (0x00 when black, which means off), then 0 at byte 12 = not saved to the device's onboard memory.
+fn logi_static(zone: u8, effect: u8, [r, g, b]: [u8; 3]) -> [u8; 13] {
+    let mut p = [0u8; 13];
+    p[..5].copy_from_slice(&[zone, effect, r, g, b]);
+    p[5] = if r | g | b != 0 { 0x02 } else { 0x00 };
+    p
 }
 
 fn list_logitech(st: &mut State, out: &mut Vec<RgbDevice>) {
     let Ok(api) = HidApi::new() else { return };
-    // HID++ long reports live on the vendor collection (usage page 0xFF00, usage 0x0002).
-    for info in api.device_list().filter(|d| d.vendor_id() == LOGITECH && d.usage_page() == 0xFF00 && d.usage() == 0x0002) {
+    // HID++ long reports live on a vendor collection: usage page 0xFF00 / usage 0x0002 on mice and receivers,
+    // usage page 0xFF43 on keyboards (G213, G815, G915) and Bluetooth devices.
+    let mut seen = std::collections::HashSet::new();
+    for info in api.device_list().filter(|d| d.vendor_id() == LOGITECH && ((d.usage_page() == 0xFF00 && d.usage() == 0x0002) || d.usage_page() == 0xFF43)) {
         let Ok(dev) = info.open_device(&api) else { continue };
         // A wired device answers as 0xFF; a Lightspeed/Unifying receiver forwards to paired devices 1–6.
         let receiver = info.product_string().is_some_and(|p| p.to_lowercase().contains("receiver"));
@@ -278,8 +387,12 @@ fn list_logitech(st: &mut State, out: &mut Vec<RgbDevice>) {
         for &index in indexes {
             let key = format!("logi:{}#{index}", info.path().to_string_lossy());
             if !st.logi.contains_key(&key) {
-                let Some((feature, zones)) = probe_logitech(&dev, index) else { continue };
-                st.logi.insert(key.clone(), Logi { path: info.path().to_owned(), index, feature, zones });
+                let Some((feature, page, zones)) = probe_logitech(&dev, index) else { continue };
+                st.logi.insert(key.clone(), Logi { path: info.path().to_owned(), index, feature, page, zones });
+            }
+            // A device can answer on more than one collection: list it once.
+            if !seen.insert((info.product_id(), info.serial_number().map(str::to_string), index)) {
+                continue;
             }
             let l = &st.logi[&key];
             let usb_name = info.product_string().unwrap_or("Logitech device").to_string();
@@ -302,6 +415,11 @@ const VIA_GET: u8 = 0x08;
 const VIA_BRIGHTNESS: u8 = 1;
 const VIA_EFFECT: u8 = 2;
 const VIA_COLOR: u8 = 4;
+const VIA_CHANNELS: [u8; 4] = [3, 2, 5, 1];
+/// Channels with a single color: SystemCore sets their brightness from the chosen color.
+fn via_single_color(channel: u8) -> bool {
+    matches!(channel, 1 | 5)
+}
 
 /// One 32-byte VIA command; returns the echoed reply. 0xFF in the first byte means "not handled by this firmware".
 fn via(dev: &HidDevice, cmd: &[u8]) -> Result<[u8; 32], String> {
@@ -343,15 +461,17 @@ fn list_via(st: &mut State, out: &mut Vec<RgbDevice>) {
         let key = format!("via:{}", info.path().to_string_lossy());
         if !st.via.contains_key(&key) {
             let Ok(dev) = info.open_device(&api) else { continue };
-            // Read-only probe: which lighting channel answers an effect query.
-            let Some(channel) = [3u8, 2].into_iter().find(|&c| via(&dev, &[VIA_GET, c, VIA_EFFECT]).is_ok()) else { continue };
+            // Read-only probe: which lighting channel answers an effect query. 3 RGB matrix, 2 RGB light (color);
+            // 5 LED matrix, 1 backlight (single-color boards such as white-backlit Keychrons: brightness only).
+            let Some(channel) = VIA_CHANNELS.into_iter().find(|&c| via(&dev, &[VIA_GET, c, VIA_EFFECT]).is_ok()) else { continue };
             st.via.insert(key.clone(), (info.path().to_owned(), channel));
         }
+        let single = via_single_color(st.via[&key].1);
         out.push(RgbDevice {
             id: key,
             name: info.product_string().filter(|s| !s.is_empty()).unwrap_or("Keyboard").to_string(),
             kind: "keyboard",
-            backend: "VIA (QMK)",
+            backend: if single { "VIA (QMK, single color)" } else { "VIA (QMK)" },
             zones: 1,
             available: true,
         });
@@ -370,12 +490,27 @@ mod tests {
     }
 
     #[test]
+    fn logitech_static_params() {
+        assert_eq!(super::logi_static(1, 0, [0x11, 0x22, 0x33]), [1, 0, 0x11, 0x22, 0x33, 0x02, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(super::logi_static(0, 2, [0, 0, 0])[5], 0x00, "black = off, no fixed-color marker");
+        assert!(super::via_single_color(5) && super::via_single_color(1) && !super::via_single_color(3));
+    }
+
+    #[test]
     fn hsv_matches_qmk_scale() {
         assert_eq!(super::hsv(255, 0, 0), (0, 255, 255));
         assert_eq!(super::hsv(0, 255, 0), (85, 255, 255));
         assert_eq!(super::hsv(0, 0, 255), (170, 255, 255));
         assert_eq!(super::hsv(255, 255, 255), (0, 0, 255));
         assert_eq!(super::hsv(0, 0, 0), (0, 0, 0));
+    }
+
+    #[test]
+    #[ignore]
+    fn peripherals_probe() {
+        for p in super::peripherals() {
+            println!("{p:?}");
+        }
     }
 
     #[test]

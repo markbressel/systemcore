@@ -92,8 +92,8 @@ export function SpeedTestPage() {
               );
             })}
           </ol>
-          <div className="speedtest__progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}>
-            <span className="speedtest__progress-fill" style={{ width: `${progress}%` }} />
+          <div className="metric-indicator" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}>
+            <span className="metric-indicator__fill" style={{ width: `${progress}%` }} />
           </div>
 
           {running ? (

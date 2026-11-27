@@ -10,6 +10,7 @@ import { hardwareDriverStatus, restartAsAdmin } from "../../lib/tauri";
 import type { RgbDevice } from "../../types/telemetry";
 import { Switch } from "../settings/SettingsPage";
 import { buildPc, buildPeripherals, PART_LABELS, PC_PARTS, PERIPHERAL_PARTS } from "./models";
+import { PartDetails } from "./PartDetails";
 import { Stage3D } from "./Stage3D";
 import type { Stage } from "./stage";
 
@@ -158,21 +159,20 @@ export function LightingPage({ scope }: { scope: LightingScope }) {
         <section className="panel lighting__side">
           {teardown && !lifted ? (
             <EmptyState icon={PackageOpen}>{!isPc ? t("Click a device to pick it up.") : caseOpen ? t("Click a part to take it out of the PC.") : t("Click the PC to take off the side panel.")}</EmptyState>
-          ) : !selected ? (
-            teardown && lifted ? (
-              <>
-                <h2 className="panel__title">{t(PART_LABELS[lifted])}</h2>
-                <p className="setting__hint">{isPc ? t("No RGB device that SystemCore can control was found for this part.") : t("No device of this kind that SystemCore can control is connected.")}</p>
-              </>
-            ) : (
-              <EmptyState icon={Lightbulb}>{t("Select a lit part in the 3D view or a device below.")}</EmptyState>
-            )
+          ) : !selected && !lifted ? (
+            <EmptyState icon={Lightbulb}>{t("Select a lit part in the 3D view or a device below.")}</EmptyState>
           ) : (
             <>
-              <h2 className="panel__title">{selected.name}</h2>
+              <h2 className="panel__title">{selectedSlot ? t(PART_LABELS[selectedSlot]) : (selected?.name ?? t("Other device"))}</h2>
+              {selectedSlot && <PartDetails part={selectedSlot} device={selected} />}
+              <h3 className="lighting__sub">{t("Lighting")}</h3>
+              {!selected ? (
+                <p className="setting__hint">{isPc ? t("No RGB device that SystemCore can control was found for this part.") : t("No device of this kind that SystemCore can control is connected.")}</p>
+              ) : (
+              <>
               <dl className="lighting__facts">
-                <dt>{t("Part")}</dt>
-                <dd>{selectedSlot ? t(PART_LABELS[selectedSlot]) : t("Other device")}</dd>
+                <dt>{t("Device")}</dt>
+                <dd>{selected.name}</dd>
                 <dt>{t("Control")}</dt>
                 <dd>{selected.backend}</dd>
                 <dt>{t("Zones")}</dt>
@@ -199,11 +199,18 @@ export function LightingPage({ scope }: { scope: LightingScope }) {
               </div>
               {followAccent && <p className="setting__hint">{t("Turn off “Match the app color” to pick a color per device.")}</p>}
               {!selected.available && <p className="setting__hint">{t("Windows gives lighting control to the app in front. The color comes back when SystemCore is in front again.")}</p>}
-              {selected.backend === "Logitech HID++" && <p className="setting__hint">{t("If Logitech G HUB is running, it may set its own color again. Turn off its lighting control (or close it) to keep this color.")}</p>}
+              {/^(ASRock Polychrome|Gigabyte RGB Fusion( 2)?) \((USB|SMBus)\)$/.test(selected.backend) && (
+                <p className="setting__hint">
+                  {t("Fans, the CPU cooler and LED strips plugged into the board's RGB/ARGB headers (Deepcool and others) take this color too. If ASRock Polychrome Sync or Gigabyte Control Center runs, it may set its own color again: close it to keep this one.")}
+                </p>
+              )}
+              {selected.backend.startsWith("Logitech HID++") && <p className="setting__hint">{t("If Logitech G HUB is running, it may set its own color again. Turn off its lighting control (or close it) to keep this color.")}</p>}
               {errors[selected.id] && (
                 <div className="notice notice--danger" role="alert">
                   <ShieldAlert aria-hidden="true" /> {t(errors[selected.id])}
                 </div>
+              )}
+              </>
               )}
             </>
           )}

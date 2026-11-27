@@ -295,3 +295,13 @@ export interface DisplayInfo {
   /** NVIDIA digital vibrance; null on other GPUs. */
   vibrance: DisplayRange | null;
 }
+
+/** A USB keyboard, mouse or headset (mirror of lights.rs `Peripheral`). */
+export interface Peripheral {
+  kind: "keyboard" | "mouse" | "headset";
+  name: string;
+  manufacturer: string | null;
+  vendorId: number;
+  productId: number;
+  wireless: boolean;
+}

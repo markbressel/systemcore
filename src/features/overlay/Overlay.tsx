@@ -12,21 +12,30 @@ import { cornerPosition } from "./placement";
 import { t } from "../../lib/i18n";
 
 const v = (m: Metric<number> | undefined) => (m?.status === "available" ? m.value : null);
-const temp = (c: number | null) => (c == null ? null : <span className={c >= 85 ? "overlay__hot" : undefined}>{c.toFixed(0)}°C</span>);
+// Red from where the part starts protecting itself: NVIDIA GPUs throttle around 83 °C, Ryzen/Intel CPUs at 95–100 °C.
+const HOT_C = { cpu: 90, gpu: 83 };
+const temp = (c: number | null, hot: number) => (c == null ? null : <span className={c >= hot ? "overlay__hot" : undefined}>{c.toFixed(0)}°C</span>);
 const usedOf = (used: number | null, total: number | null) => (used == null ? null : `${formatBytes(used)}${total ? ` / ${formatBytes(total, 0)}` : ""}`);
 
 interface RowProps {
   label: string;
   tone: "cpu" | "gpu" | "memory";
   percent: number | null;
+  /** Shown big next to the label; undefined = no temperature slot (RAM). */
+  tempC?: number | null;
   details: ReactNode[];
 }
 
-function Row({ label, tone, percent, details }: RowProps) {
+function Row({ label, tone, percent, tempC, details }: RowProps) {
   const shown = details.filter((d) => d != null);
   return (
     <div className={`overlay__row overlay__row--${tone}`}>
       <span className="overlay__label">{label}</span>
+      {tempC !== undefined && (
+        <span className="overlay__temp" title={tempC == null ? t("No temperature reading. CPU temperature needs SystemCore running as administrator.") : undefined}>
+          {temp(tempC, HOT_C[tone as "cpu" | "gpu"]) ?? "—°C"}
+        </span>
+      )}
       <span className="overlay__bar" aria-hidden="true">
         <span style={{ width: `${Math.min(100, percent ?? 0)}%` }} />
       </span>
@@ -194,8 +203,8 @@ export function Overlay() {
               <span className="overlay__value">{t(LIMIT_TEXT[limit])}</span>
             </span>
           )}
-          {rows.cpu && <Chip label="CPU" tone="cpu" percent={v(cpu?.usagePercent)} extra={temp(v(cpu?.temperatureC))} />}
-          {rows.gpu && <Chip label="GPU" tone="gpu" percent={v(gpu?.usagePercent)} extra={temp(v(gpu?.temperatureC))} />}
+          {rows.cpu && <Chip label="CPU" tone="cpu" percent={v(cpu?.usagePercent)} extra={temp(v(cpu?.temperatureC), HOT_C.cpu)} />}
+          {rows.gpu && <Chip label="GPU" tone="gpu" percent={v(gpu?.usagePercent)} extra={temp(v(gpu?.temperatureC), HOT_C.gpu)} />}
           {rows.ram && <Chip label="RAM" tone="memory" percent={v(mem?.usagePercent)} />}
           {rows.net && (
             <span className="overlay__chip overlay__chip--net">
@@ -246,13 +255,14 @@ export function Overlay() {
               {t("Limited by")} <b>{t(LIMIT_TEXT[limit])}</b>
             </div>
           )}
-          {rows.cpu && <Row label="CPU" tone="cpu" percent={v(cpu?.usagePercent)} details={[temp(v(cpu?.temperatureC)), ghz == null ? null : `${(ghz / 1000).toFixed(2)} GHz`]} />}
+          {rows.cpu && <Row label="CPU" tone="cpu" percent={v(cpu?.usagePercent)} tempC={v(cpu?.temperatureC)} details={[ghz == null ? null : `${(ghz / 1000).toFixed(2)} GHz`]} />}
           {rows.gpu && (
             <Row
               label="GPU"
               tone="gpu"
               percent={v(gpu?.usagePercent)}
-              details={[temp(v(gpu?.temperatureC)), usedOf(v(gpu?.vramUsedBytes), v(gpu?.vramTotalBytes)), watts == null ? null : `${watts.toFixed(0)} W`]}
+              tempC={v(gpu?.temperatureC)}
+              details={[usedOf(v(gpu?.vramUsedBytes), v(gpu?.vramTotalBytes)), watts == null ? null : `${watts.toFixed(0)} W`]}
             />
           )}
           {rows.ram && <Row label="RAM" tone="memory" percent={v(mem?.usagePercent)} details={[usedOf(v(mem?.usedBytes), v(mem?.totalBytes))]} />}

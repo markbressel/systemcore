@@ -122,20 +122,67 @@ pub fn protected(addr: u8) -> bool {
 const SIZE_BYTE: u64 = 1;
 const SIZE_BYTE_DATA: u64 = 2;
 const SIZE_WORD_DATA: u64 = 3;
+const SIZE_BLOCK_DATA: u64 = 5;
+const BLOCK_MAX: usize = 32;
+
+/// Which SMBus module loaded: they return block reads in different layouts.
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum Chip {
+    /// AMD: length byte, then the data bytes.
+    Piix4,
+    /// Intel: length in the first 8-byte cell, data from byte 8.
+    I801,
+}
+
+/// Block-read payload from the module's 5 output cells (40 bytes, little-endian).
+fn unpack_block(chip: Chip, out: &[u64]) -> Result<Vec<u8>, String> {
+    let bytes: Vec<u8> = out.iter().flat_map(|v| v.to_le_bytes()).collect();
+    let (len, start) = match chip {
+        Chip::Piix4 => (*bytes.first().ok_or("no data")? as usize, 1),
+        Chip::I801 => (*out.first().ok_or("no data")? as usize, 8),
+    };
+    if len == 0 || len > BLOCK_MAX || bytes.len() < start + len {
+        return Err(format!("bad SMBus block length {len}"));
+    }
+    Ok(bytes[start..start + len].to_vec())
+}
+
+/// Block-write input cells: length byte then up to 32 data bytes, packed little-endian into 5 cells.
+fn pack_block(data: &[u8]) -> Result<[u64; 5], String> {
+    if data.is_empty() || data.len() > BLOCK_MAX {
+        return Err(format!("bad SMBus block length {}", data.len()));
+    }
+    let mut bytes = [0u8; 40];
+    bytes[0] = data.len() as u8;
+    bytes[1..=data.len()].copy_from_slice(data);
+    Ok(std::array::from_fn(|i| u64::from_le_bytes(bytes[i * 8..i * 8 + 8].try_into().unwrap())))
+}
 
 /// The motherboard SMBus (AMD PIIX4-compatible or Intel I801), with the bus lock held while borrowed.
 pub struct Smbus<'a> {
     m: &'a Module,
+    chip: Chip,
     _lock: GlobalLock,
 }
 
 impl Smbus<'_> {
-    fn xfer(&self, addr: u8, read: bool, cmd: u8, size: u64, data: u64) -> Result<u64, String> {
+    fn xfer_cells(&self, addr: u8, read: bool, cmd: u8, size: u64, data: [u64; 5]) -> Result<Vec<u64>, String> {
         if !read && protected(addr) {
             return Err(format!("refused: write to protected SMBus address 0x{addr:02x}"));
         }
-        let out = self.m.exec("ioctl_smbus_xfer", &[addr as u64, read as u64, cmd as u64, size, data, 0, 0, 0, 0], 5)?;
-        out.first().copied().ok_or_else(|| "no data".into())
+        let [d0, d1, d2, d3, d4] = data;
+        self.m.exec("ioctl_smbus_xfer", &[addr as u64, read as u64, cmd as u64, size, d0, d1, d2, d3, d4], 5)
+    }
+    fn xfer(&self, addr: u8, read: bool, cmd: u8, size: u64, data: u64) -> Result<u64, String> {
+        self.xfer_cells(addr, read, cmd, size, [data, 0, 0, 0, 0])?.first().copied().ok_or_else(|| "no data".into())
+    }
+    /// SMBus block read: the device sends a length byte and up to 32 bytes.
+    pub fn read_block_data(&self, addr: u8, cmd: u8) -> Result<Vec<u8>, String> {
+        unpack_block(self.chip, &self.xfer_cells(addr, true, cmd, SIZE_BLOCK_DATA, [0; 5])?)
+    }
+    /// SMBus block write of 1–32 bytes.
+    pub fn write_block_data(&self, addr: u8, cmd: u8, data: &[u8]) -> Result<(), String> {
+        self.xfer_cells(addr, false, cmd, SIZE_BLOCK_DATA, pack_block(data)?).map(|_| ())
     }
     /// SMBus "receive byte": a read-only presence check.
     pub fn read_byte(&self, addr: u8) -> Result<u8, String> {
@@ -152,22 +199,35 @@ impl Smbus<'_> {
     }
 }
 
-fn smbus_module() -> &'static Mutex<Option<Module>> {
-    static M: OnceLock<Mutex<Option<Module>>> = OnceLock::new();
+fn smbus_module() -> &'static Mutex<Option<(Module, Chip)>> {
+    static M: OnceLock<Mutex<Option<(Module, Chip)>>> = OnceLock::new();
     // Each module checks the chipset itself and refuses to load on the wrong one.
-    M.get_or_init(|| Mutex::new(Module::load(SMBUS_PIIX4).or_else(|_| Module::load(SMBUS_I801)).ok()))
+    M.get_or_init(|| {
+        let m = Module::load(SMBUS_PIIX4).map(|m| (m, Chip::Piix4)).or_else(|_| Module::load(SMBUS_I801).map(|m| (m, Chip::I801)));
+        Mutex::new(m.ok())
+    })
+}
+
+/// DDR5 modules keep their SPD behind a hub on the same bus, and RGB tools probing it have corrupted SPDs
+/// (unbootable RAM) and hard-reset PCs. On DDR5 systems SystemCore does not touch the SMBus at all.
+fn ddr5_installed() -> bool {
+    static DDR5: OnceLock<bool> = OnceLock::new();
+    *DDR5.get_or_init(|| super::wmi_sources::memory_modules().iter().any(|m| m.kind == Some("DDR5")))
 }
 
 /// Runs `f` on SMBus port `port` (PIIX4 has ports 0 and 1; I801 has one) with the system-wide bus lock held.
 pub fn with_smbus<T>(port: u8, f: impl FnOnce(&Smbus) -> Result<T, String>) -> Result<T, String> {
+    if ddr5_installed() {
+        return Err("SMBus lighting is off on DDR5 systems, to protect the memory modules.".into());
+    }
     let guard = smbus_module().lock().unwrap_or_else(|e| e.into_inner());
-    let m = guard.as_ref().ok_or("SMBus not available (PawnIO missing, not elevated, or unsupported chipset)")?;
+    let (m, chip) = guard.as_ref().ok_or("SMBus not available (PawnIO missing, not elevated, or unsupported chipset)")?;
     let lock = GlobalLock::take(w!(r"Global\Access_SMBUS.HTP.Method")).ok_or("SMBus busy (another hardware tool holds it)")?;
     // PIIX4 only: select the port. I801 has no such function, which is fine for port 0.
     if m.exec("ioctl_piix4_port_sel", &[port as u64], 1).is_err() && port != 0 {
         return Err("no such SMBus port".into());
     }
-    f(&Smbus { m, _lock: lock })
+    f(&Smbus { m, chip: *chip, _lock: lock })
 }
 
 // ---- AMD Ryzen temperature (SMN) ----
@@ -193,6 +253,22 @@ fn tctl_celsius(v: u32) -> Option<f32> {
 
 #[cfg(test)]
 mod tests {
+    use super::{pack_block, unpack_block, Chip};
+
+    #[test]
+    fn block_layouts() {
+        let cells = pack_block(&[0xAA, 0xBB, 0xCC]).unwrap();
+        assert_eq!(cells[0], 0x00CC_BBAA_03);
+        assert!(cells[1..].iter().all(|&c| c == 0));
+        assert!(pack_block(&[]).is_err() && pack_block(&[0; 33]).is_err());
+        // PIIX4: length byte, then data.
+        assert_eq!(unpack_block(Chip::Piix4, &[0x0302_0102, 0, 0, 0, 0]).unwrap(), vec![0x01, 0x02]);
+        // I801: length cell, data from byte 8.
+        assert_eq!(unpack_block(Chip::I801, &[2, 0x0B0A, 0, 0, 0]).unwrap(), vec![0x0A, 0x0B]);
+        assert!(unpack_block(Chip::Piix4, &[0x21, 0, 0, 0, 0]).is_err(), "length 33");
+        assert!(unpack_block(Chip::I801, &[0, 0, 0, 0, 0]).is_err(), "length 0");
+    }
+
     #[test]
     fn protected_addresses() {
         for a in [0x30, 0x36, 0x37, 0x50, 0x53, 0x57] {

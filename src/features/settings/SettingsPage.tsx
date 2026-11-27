@@ -1,9 +1,8 @@
-import { disable as disableAutostart, enable as enableAutostart, isEnabled as autostartEnabled } from "@tauri-apps/plugin-autostart";
 import { BellRing, Gamepad2, Palette, PictureInPicture2, Power, ShieldCheck } from "lucide-react";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { PageContainer } from "../../components/layout/PageContainer";
 import { toggleOverlayWindow, setAppLanguage, updateOverlay, updateSettings, useOverlayOpen, useSettings, type AlertSettings, type OverlayRow, type Theme } from "../../stores/settings";
-import { enableFso, fsoStatus, isElevated, restartAsAdmin } from "../../lib/tauri";
+import { enableFso, fsoStatus, getAutostart, getRunAsAdmin, isElevated, restartAsAdmin, setAutostart, setRunAsAdmin } from "../../lib/tauri";
 import { CORNERS } from "../overlay/placement";
 import { SettingsDial } from "./SettingsDial";
 import { t } from "../../lib/i18n";
@@ -118,18 +117,23 @@ export function SettingsPage() {
   const { overlay: o, startup, alerts, appearance } = useSettings();
   const [tab, setTab] = useState<SettingsTab>("gaming");
   const open = useOverlayOpen();
-  // Autostart lives in the Windows registry, not in our settings; read it back after each change.
-  const [autostart, setAutostart] = useState<boolean | null>(null);
+  // Start with Windows is a Task Scheduler task (elevated), not part of our settings; read it back after each change.
+  const [autostart, setAutostartState] = useState<boolean | null>(null);
   useEffect(() => {
-    autostartEnabled().then(setAutostart).catch(() => setAutostart(null));
+    getAutostart().then(setAutostartState).catch(() => setAutostartState(null));
   }, []);
+  // Read by the app before its window exists, so it is stored in the registry, not in our settings.
+  const [runAsAdmin, setRunAsAdminState] = useState<boolean | null>(null);
+  useEffect(() => {
+    getRunAsAdmin().then(setRunAsAdminState).catch(() => setRunAsAdminState(null));
+  }, []);
+  const toggleRunAsAdmin = async (on: boolean) => {
+    await setRunAsAdmin(on).catch(() => {});
+    setRunAsAdminState(await getRunAsAdmin().catch(() => null));
+  };
   const toggleAutostart = async (on: boolean) => {
-    try {
-      await (on ? enableAutostart() : disableAutostart());
-      setAutostart(await autostartEnabled());
-    } catch {
-      setAutostart(null);
-    }
+    await setAutostart(on).catch(() => {});
+    setAutostartState(await getAutostart().catch(() => null));
   };
   const setAlert = (patch: Partial<AlertSettings>) => updateSettings("alerts", patch);
   const [fso, setFso] = useState<{ disabledGlobally: boolean; disabledFor: string[] } | null>(null);
@@ -156,6 +160,12 @@ export function SettingsPage() {
         <div className="speedtest__side settings-panel__content">
       {tab === "gaming" && (
       <Section icon={<Gamepad2 className="panel__icon" aria-hidden="true" />} title="Gaming">
+        <SettingRow
+          title="Always run as administrator"
+          hint="FPS, CPU temperature and RAM lighting need administrator rights. SystemCore then starts with them every time, also with Windows. Applies from the next start."
+          disabled={runAsAdmin == null}
+          control={<Switch label="Always run as administrator" checked={runAsAdmin ?? true} disabled={runAsAdmin == null} onChange={(on) => void toggleRunAsAdmin(on)} />}
+        />
         <SettingRow
           title="FPS measurement"
           hint={

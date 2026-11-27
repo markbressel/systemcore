@@ -6,7 +6,8 @@
 
 **A fast, good-looking system monitor and PC control center for Windows 11.**
 Live CPU, GPU, memory, disk and network telemetry in a gaming-cockpit interface, an in-game overlay with FPS,
-RGB lighting control for PC parts and peripherals, display color profiles for games, a speed test, a benchmark and one-click updates.
+RGB lighting control for PC parts and peripherals, display color profiles for games, a "will this game run?" check,
+one-click updates for all your programs, a gamer's app loadout, IT and gaming news, a speed test and a benchmark.
 
 <br />
 
@@ -25,16 +26,19 @@ RGB lighting control for PC parts and peripherals, display color profiles for ga
 
 ---
 
-## What's new in 0.3.0
+## What's new in 0.4.0
 
-- **PC lighting**: a 3D PC you can take apart. Take the side panel off, lift out a part and set its RGB color. RAM lighting works without vendor software.
-- **Peripherals**: a 3D desk with keyboard, mouse, headset and mouse pad. Pick a device up and color it. Logitech G (wired and Lightspeed), Razer Chroma, VIA/QMK keyboards (Keychron and others) and Windows Dynamic Lighting devices.
-- **Match the app color**: one switch makes every RGB device follow SystemCore's accent color.
-- **Display**: brightness, contrast, gamma, color temperature and NVIDIA saturation per monitor, plus **game profiles** that switch on by themselves while a game is in front.
-- **CPU temperature without extra programs** on AMD Ryzen, read from the processor's own sensor.
-- **New Overview cockpit**: redesigned instrument cluster with temperature gauges and a selectable info line.
+- **Will this game run?** (Benchmark page): search any game on Steam and see its minimum and recommended specs next to your PC, how it would run, and exactly which part to upgrade.
+- **Updater**: every installed program with an update, the download size and how full your Windows drive would get, then update them all in one go (Windows Package Manager).
+- **Loadout**: game launchers, voice and streaming apps, monitoring and cleanup tools with their real icons, plus the drivers and vendor tools picked for *your* graphics card, processor, motherboard and mouse. One click installs them silently.
+- **News**: the latest IT, hardware and gaming news from Hungarian and English sites, and a "What's new in SystemCore" timeline.
+- **About** page with a feedback form: bug reports and ideas reach the developer directly.
+- **More RGB hardware**: ASRock Polychrome and Gigabyte RGB Fusion motherboards (with the fans and coolers on their headers, e.g. Deepcool), Gigabyte AORUS and ASRock Radeon graphics cards, newer Logitech mice and keyboards, Logitech keyboards and Bluetooth devices, single-color Keychron backlights.
+- **Overlay**: CPU and GPU temperature shown big next to the label, in red when the part runs hot.
+- **Safety**: no SMBus lighting access on DDR5 systems; Logitech colors are no longer saved to the device's memory.
+- One consistent look for bars, inputs, checkboxes and loading indicators on every page.
 
-All releases and their notes: [Releases](https://github.com/markbressel/systemcore/releases).
+All releases and their notes: [Releases](https://github.com/markbressel/systemcore/releases). The app's **News** page shows the same changelog.
 
 ## Download and install
 
@@ -92,7 +96,7 @@ No account, no ads, no telemetry, no background services.
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/network.png" alt="Network" /></td>
-    <td width="50%"><b>Network</b>: total and per-adapter download/upload rates with history, and the programs using the network.</td>
+    <td width="50%"><b>Network</b>: total and per-adapter download/upload rates with history, and the programs using the network (a steady snapshot with a <b>Refresh</b> button, so the list doesn't jump around).</td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/lighting.png" alt="PC lighting" /></td>
@@ -133,7 +137,28 @@ No account, no ads, no telemetry, no background services.
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/benchmark.png" alt="Benchmark" /></td>
-    <td width="50%"><b>Benchmark</b>: CPU stress test with a score, the temperature during the run, thermal slow-down detection and earlier runs to compare.</td>
+    <td width="50%"><b>Benchmark</b>: 30 s CPU and 30 s GPU stress test with scores, the temperature during the run, thermal slow-down detection and earlier runs to compare.</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/benchmark-games.png" alt="Will this game run?" /></td>
+    <td width="50%">
+      <b>Will this game run?</b>: search any game on Steam. SystemCore reads its minimum and recommended requirements, puts them next to your PC (processor, graphics card, video memory, RAM, storage, Windows) and says <i>Runs well</i>, <i>Playable</i> or <i>Below minimum</i>, part by part.<br /><br />
+      Below it: <b>what to upgrade</b> for the recommended settings, naming the cheapest current part that gets there (e.g. "Graphics card: at least RTX 3050 (8 GB)"). Your processor and graphics card are placed on a scale of known parts from your benchmark scores.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/updater.png" alt="Updater" /></td>
+    <td width="50%">
+      <b>Updater</b>: every installed program with a newer version (the same list as <code>winget upgrade</code>), with current and new version, source and download size. A drive bar shows how full the Windows drive would get while updating and warns if space runs short.<br /><br />
+      <b>Update selected</b> installs them one at a time, silently, with a status per row. It keeps going while you use other pages; <b>Stop after this program</b> never interrupts an installer halfway.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/loadout.png" alt="Loadout" /></td>
+    <td width="50%">
+      <b>Loadout</b>: the apps worth having on a gaming PC, with their real icons: game launchers (Steam, Epic, GOG, EA, Ubisoft, Battle.net, Playnite…), voice and streaming (Discord, OBS, Medal…), monitoring and tuning (HWiNFO, MSI Afterburner, CPU-Z, GPU-Z, FanControl…), cleanup and care, and the runtimes games need.<br /><br />
+      <b>Picked for your PC</b>: the drivers and vendor tools for the parts SystemCore found (NVIDIA App, Ryzen Master, MSI Center, Logitech G HUB…), with the reason on each card. Installed apps are marked; one click installs the rest silently.
+    </td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/startup.png" alt="Startup apps" /></td>
@@ -156,6 +181,19 @@ No account, no ads, no telemetry, no background services.
   </tr>
 </table>
 
+### News and About
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/news.png" alt="News" /></td>
+    <td width="50%"><b>News</b>: the latest IT, hardware and gaming news from HWSW, Index Tech, GameStar, Tom's Hardware, TechPowerUp, Ars Technica, PC Gamer and Eurogamer, filtered by topic and language. Driver news for your graphics card is marked. On the side: <b>What's new in SystemCore</b>, every version's changes.</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/about.png" alt="About" /></td>
+    <td width="50%"><b>About</b>: version, what SystemCore sends over the internet, and a <b>feedback form</b> for bug reports and ideas, sent straight to the developer (system details optional, without names or addresses).</td>
+  </tr>
+</table>
+
 ### In-game overlay
 
 <img src="docs/screenshots/overlay.png" alt="SystemCore overlay" width="270" align="right" />
@@ -163,7 +201,8 @@ No account, no ads, no telemetry, no background services.
 Turn it on from the top bar (**Overlay**), the tray icon, **Settings**, or with `Ctrl+Shift+O`.
 
 - FPS, frame time and 1% low of the app in front (needs administrator, see below).
-- CPU load and clock, GPU load, temperature, VRAM and power draw, RAM usage, live network rates and ping.
+- CPU and GPU temperature big next to their labels, red when the part runs hot (GPU 83 °C, CPU 90 °C).
+- CPU load and clock, GPU load, VRAM and power draw, RAM usage, live network rates and ping.
 - **Show overlay in games**: opens by itself when an app goes fullscreen and closes when you leave.
 - **Readings and size**: pick the readings, scale it 75–150 %, or switch to a single-line **compact** layout.
 - **Fixed position** in any corner (respects the taskbar), or **free positioning** with **Locked** so it stays put.
@@ -185,12 +224,17 @@ SystemCore talks to the devices directly. No vendor software is needed, but if i
 | Family | Devices | How |
 |---|---|---|
 | Windows Dynamic Lighting | Any device that supports the Windows 11 lighting standard | Built into Windows; colors apply while SystemCore is in front |
-| Logitech G | Mice, keyboards and headsets with HID++ lighting, wired and through Lightspeed/Unifying receivers | USB (HID++ 2.0) |
+| Logitech G | LIGHTSYNC mice and keyboards: both lighting generations (Color LED effects and the newer RGB effects: G502 X, G915 X, G515, PRO X TKL, G203 LIGHTSYNC…), wired, through Lightspeed/Unifying/Bolt receivers and over Bluetooth, keyboards such as G213, G815 and G915 | USB / Bluetooth (HID++ 2.0) |
 | Razer Chroma | BlackWidow, Huntsman, Ornata, Cynosa, DeathAdder, Basilisk, Viper, Naga, Cobra, Firefly, Goliathus, Strider, Tartarus, Chroma docks | USB |
-| VIA / QMK keyboards | Keychron and other VIA-enabled keyboards with RGB | USB (VIA raw HID) |
-| RGB RAM (ENE) | T-Force Delta RGB, G.Skill Trident Z RGB, Geil Super Luce and other ENE-based DDR4 | SMBus through PawnIO, administrator |
+| Keychron and other VIA / QMK keyboards | Keychron Q, V, K Pro, Max and C Pro series and other VIA-enabled keyboards; RGB, or brightness on single-color backlights | USB / Keychron Link (VIA raw HID) |
+| ASRock motherboards | Polychrome RGB: USB controller (about 2020 on: B550, X570, 600/700/800 series, DeskMini) and older boards on the SMBus (ASR LED, Polychrome v1/v2). Includes fans, coolers and strips on the board's RGB/ARGB headers (Deepcool and others) | USB; older boards: SMBus through PawnIO, administrator |
+| Gigabyte / AORUS motherboards | RGB Fusion 2 USB controller (IT5702, IT8297, IT5711; about 2018 on) and first-generation RGB Fusion on the SMBus. Includes fans, coolers and strips on the board's headers | USB; older boards: SMBus through PawnIO, administrator |
+| Graphics cards | Gigabyte / AORUS GeForce RTX 20–40 and Radeon RX (RGB Fusion 2), ASRock Radeon RX 7900 / 9070 / 9060 (Phantom Gaming, Taichi, Steel Legend): only the exact models on the tested list | The card's I2C bus through the NVIDIA (NvAPI) or AMD (ADL) driver |
+| RGB RAM (ENE) | T-Force Delta RGB, G.Skill Trident Z RGB, ADATA XPG Spectrix, Geil Super Luce and other ENE-based DDR4 | SMBus through PawnIO, administrator |
 
-More families (Corsair, ASUS Aura, MSI Mystic Light, Gigabyte RGB Fusion, ASRock Polychrome, SteelSeries, HyperX, NZXT…) are on the way. Colors are never saved to a device's memory: unplugging it or a full power-off brings back its own lighting.
+More families (Corsair, ASUS Aura, MSI Mystic Light, SteelSeries, HyperX, NZXT…) are on the way. Colors are never saved to a device's memory: unplugging it or a full power-off brings back its own lighting.
+
+**Not supported on purpose:** RGB on **DDR5** memory (other tools corrupted modules' SPD this way, so SystemCore stays off the SMBus entirely on DDR5 PCs); older non-QMK Keychron keyboards (only their own keys change the lighting); headsets for now.
 
 ## Hardware access (PawnIO)
 
@@ -198,7 +242,8 @@ Windows does not let ordinary programs read the Ryzen CPU temperature or talk to
 
 - The SystemCore installer runs the official PawnIO setup silently (it asks for administrator rights itself) and skips it when PawnIO is already installed. Uninstalling SystemCore leaves PawnIO in place, because other tools may use it.
 - RAM lighting and the CPU temperature need SystemCore to **run as administrator**; the PC lighting page offers a restart button.
-- Safety: RAM controllers are identified with read-only checks first. SystemCore only ever writes color, mode and apply registers, never to the memory's SPD chip, never changes controller addresses and never saves to the controller's flash.
+- Safety: controllers are identified with read-only checks first. SystemCore only ever writes color, mode and apply registers, never to the memory's SPD chip, never changes controller addresses and never saves to the controller's flash. On PCs with DDR5 memory it does not use the SMBus at all.
+- Graphics card lighting does not need PawnIO: it goes through the graphics driver, and only to the exact card models and addresses on the tested list.
 
 ## Updates
 
@@ -212,7 +257,11 @@ Everything is measured and shown locally. SystemCore has no account, no analytic
 
 - the **Speed Test**, and only when you start it (Cloudflare);
 - the **ping** reading: a TCP handshake to `1.1.1.1:443` every 2 seconds, without sending any data;
-- the **update check** (GitHub Releases).
+- the **update check** (GitHub Releases);
+- the **News** page: the news sites' public RSS feeds, when you open the page (refreshed after 15 minutes or on **Refresh**);
+- **Will this game run?**: the Steam store's public search and app-details API, only for the game you search;
+- **Updater** and **Loadout**: Windows Package Manager (winget) and the publishers' download servers, only when you check or install;
+- **feedback**: only when you press **Send** on the About page (Formspree e-mails it to the developer).
 
 History stays on this PC and is kept for 24 hours. Lighting, display and all other settings are saved on this PC only. The spec report leaves out the computer name and MAC addresses. Process command lines and environment variables are never read.
 
@@ -234,7 +283,7 @@ npx tauri build      # NSIS installer in src-tauri/target/release/bundle/nsis/
 
 1. Bump the version in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`, then `npm install --package-lock-only` so the lockfile follows.
 2. Refresh the screenshots: `npm run screenshots` from an administrator terminal (CPU temperature and RAM lighting) on a PC with RGB devices. It captures every page, tab, settings section, the 3D lighting steps and the overlay.
-3. Update this README: **What's new**, the feature sections, supported devices, data sources and limitations.
+3. Update this README (**What's new**, the feature sections, supported devices, data sources and limitations) and the in-app changelog in `src/features/news/changelog.ts` (rename the `next` entry to the new version).
 4. Commit, then tag and push:
    ```powershell
    git tag vX.Y.Z
@@ -276,7 +325,10 @@ React pages (src/features/*)
 | FPS, frame time, 1% low | ETW present events (DXGI, D3D9, DxgKrnl), like PresentMon. Needs administrator |
 | Ping | TCP connect time to Cloudflare (`1.1.1.1:443`) |
 | Startup apps | `Run` registry keys, Startup folders and Task Manager's `StartupApproved` flags |
-| RGB lighting | Windows Dynamic Lighting (`Windows.Devices.Lights`), USB HID (Logitech HID++, Razer, VIA), SMBus through PawnIO (RAM) |
+| RGB lighting | Windows Dynamic Lighting (`Windows.Devices.Lights`), USB HID (Logitech HID++, Razer, VIA, ASRock Polychrome, Gigabyte RGB Fusion 2), SMBus through PawnIO (RAM, older ASRock/Gigabyte boards), GPU I2C through NvAPI / ADL (graphics cards) |
+| Game requirements | Steam store API (`storesearch`, `appdetails`), parsed against built-in tables of GPU and CPU performance |
+| Program updates, app installs | Windows Package Manager (`winget upgrade`, `list`, `show`, `install`); download sizes from the installers' servers |
+| News | RSS/Atom feeds of the listed sites, parsed in the app |
 | Display color | GDI gamma ramps, Monitor Configuration API (DDC/CI), NVAPI digital vibrance (`nvapi64.dll` from the driver) |
 
 ### Known limitations
@@ -289,9 +341,13 @@ React pages (src/features/*)
 - **DDC/CI** works on most desktop monitors when it is enabled in the monitor's menu; laptop panels and some docks do not support it.
 - **Process memory** is the working set. Task Manager's default column is the private working set, so the numbers differ.
 - Some older drives report no media type ("Unspecified by drive").
+- **Will this game run?** is an estimate from the benchmark scores and the requirements on the game's Steam page, not a measured frame rate. Requirements written vaguely ("dual core 2.8 GHz") cannot be compared and are marked as not recognized.
+- **Updater** and **Loadout** need Windows Package Manager (part of *App Installer*, built into Windows 11). Some installers ask for administrator rights, and an open program may need closing before its update.
+- **New RGB families** (ASRock, Gigabyte, graphics cards, newer Logitech devices) follow the documented protocols but could not be tested on every model. If a device is missing or shows the wrong color, please report it from the About page.
 
 ## Third-party software
 
 - [PawnIO](https://pawnio.eu) driver setup (freeware; its author allows redistributing the installer) and its modules from [PawnIO.Modules](https://github.com/namazso/PawnIO.Modules) (LGPL-2.1, unmodified; license text in `src-tauri/resources/pawnio/COPYING`).
 - [three.js](https://threejs.org) (MIT), [hidapi](https://github.com/ruabmbua/hidapi-rs) (MIT), [lucide](https://lucide.dev) icons (ISC) and the other open-source packages listed in `package.json` and `src-tauri/Cargo.toml`.
-- Lighting protocols are SystemCore's own implementation; the OpenRGB, openrazer and liquidctl projects were used as protocol documentation only.
+- Lighting protocols are SystemCore's own implementation; the OpenRGB, openrazer and liquidctl projects were used as protocol documentation only. The graphics card allow list is generated from OpenRGB's list of tested cards.
+- Loadout icons are the publishers' own icons and trademarks, used only to identify their apps; a few vector logos come from [Simple Icons](https://simpleicons.org) (CC0).

@@ -1,16 +1,26 @@
 @use "../abstracts" as *;
 
-// Segmented utilization bar. Color comes from the resource, switching to warning/danger at thresholds.
+// The one bar of the app (usage, progress, disk space, table cells): segmented, or --thin and rounded.
+// Color comes from the resource (accent by default), switching to warning/danger at thresholds.
+// Several __fill children stack left to right (e.g. used space + what an update adds).
 .metric-indicator {
   --indicator-color: var(--color-accent);
   position: relative;
+  display: flex;
   height: 8px;
   background: var(--color-surface-active);
   mask: repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 7px);
 
   &__fill {
+    flex: none;
     height: 100%;
     background: var(--indicator-color);
+    transition: width 0.4s ease;
+
+    // A second part in the accent color, on top of the resource color.
+    &--extra {
+      background: var(--color-accent);
+    }
   }
 
   &--thin {
@@ -18,9 +28,7 @@
     mask: none;
     border-radius: $radius-pill;
 
-    .metric-indicator__fill {
-      border-radius: $radius-pill;
-    }
+    overflow: hidden;
   }
 
   &--cpu { --indicator-color: var(--color-chart-cpu); }
@@ -36,21 +44,6 @@
   display: flex;
   flex-direction: column;
   gap: $space-2;
-
-  &__bar {
-    display: flex;
-    height: 14px;
-    overflow: hidden;
-    border-radius: $radius-sm;
-    background: var(--color-surface-active);
-  }
-
-  &__part {
-    height: 100%;
-
-    &--memory { background: var(--color-chart-memory); }
-    &--free { flex: 1; background: var(--color-surface-active); }
-  }
 
   &__legend {
     display: flex;

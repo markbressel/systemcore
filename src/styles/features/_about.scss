@@ -1,0 +1,127 @@
+@use "../abstracts" as *;
+
+// About page: brand hero, feedback form beside app facts and privacy.
+.about-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: $space-6;
+  padding: $space-8;
+  background: radial-gradient(ellipse at 10% 50%, var(--color-accent-soft) 0%, var(--color-bg-tertiary) 55%);
+
+  @include below($bp-compact) {
+    grid-template-columns: auto minmax(0, 1fr);
+
+    .about-hero__actions {
+      grid-column: 1 / -1;
+    }
+  }
+
+  &__logo {
+    width: 96px;
+    height: 96px;
+    filter: drop-shadow(0 0 18px var(--color-accent-soft));
+  }
+
+  &__name {
+    margin: 0;
+    font-family: $font-family-display;
+    font-size: $font-display;
+    font-weight: $weight-semibold;
+    letter-spacing: 0.14em;
+
+    span {
+      color: var(--color-accent);
+    }
+  }
+
+  &__tagline {
+    margin: $space-1 0 $space-3;
+    color: var(--color-text-secondary);
+  }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-2 $space-4;
+    color: var(--color-text-muted);
+    font-size: $font-sm;
+  }
+
+  &__version {
+    @include mono-num;
+    color: var(--color-accent);
+    font-weight: $weight-semibold;
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-2;
+  }
+}
+
+.about-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  align-items: start;
+  gap: $space-6;
+
+  @include below($bp-standard) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  &__side {
+    display: flex;
+    flex-direction: column;
+    gap: $space-6;
+  }
+}
+
+.about-form {
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: $space-2;
+    color: var(--color-text-secondary);
+    font-size: $font-sm;
+  }
+
+  &__system {
+    @include mono-num;
+    margin: 0;
+    padding: $space-3;
+    overflow-x: auto;
+    color: var(--color-text-muted);
+    font-size: $font-xs;
+    line-height: 1.6;
+    background: var(--color-bg-secondary);
+    border-left: 2px solid var(--color-accent);
+    border-radius: $radius-sm;
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-2;
+  }
+
+  &__sent {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    color: var(--color-success);
+  }
+}
+
+.about-list {
+  margin: 0;
+  padding-left: $space-5;
+  color: var(--color-text-secondary);
+  font-size: $font-sm;
+  line-height: 1.7;
+
+  strong {
+    color: var(--color-text-primary);
+  }
+}

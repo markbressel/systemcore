@@ -308,17 +308,9 @@
     font-size: 13px;
   }
 
+  // The bar itself is a .metric-indicator--thin.
   &__track {
-    display: block;
-    height: 7px;
     max-width: 230px;
-    background: var(--color-bg-secondary);
-  }
-
-  &__fill {
-    display: block;
-    height: 100%;
-    background: linear-gradient(90deg, var(--color-accent-soft), var(--color-accent));
   }
 
   &__value {

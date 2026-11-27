@@ -4,6 +4,10 @@ import { AppShell } from "../components/layout/AppShell";
 import { LoadingState, PageErrorBoundary } from "../components/feedback/States";
 import type { PageId } from "../components/layout/navigation";
 import { BenchmarkPage } from "../features/benchmark/BenchmarkPage";
+import { NewsPage } from "../features/news/NewsPage";
+import { AboutPage } from "../features/about/AboutPage";
+import { UpdaterPage } from "../features/updater/UpdaterPage";
+import { LoadoutPage } from "../features/loadout/LoadoutPage";
 import { DisplayPage } from "../features/display/DisplayPage";
 import { HardwarePage } from "../features/hardware/HardwarePage";
 import { HistoryPage } from "../features/history/HistoryPage";
@@ -61,6 +65,10 @@ export function App() {
       {(page === "lighting" || page === "peripherals") && <Suspense fallback={<LoadingState />}><LightingPage scope={page === "lighting" ? "pc" : "peripherals"} /></Suspense>}
       {page === "speedtest" && <SpeedTestPage />}
       {page === "benchmark" && <BenchmarkPage />}
+      {page === "news" && <NewsPage />}
+      {page === "about" && <AboutPage />}
+      {page === "updater" && <UpdaterPage />}
+      {page === "loadout" && <LoadoutPage />}
       {page === "startup" && <StartupPage />}
       {page === "settings" && <SettingsPage />}
       </PageErrorBoundary>

@@ -1,16 +1,42 @@
 @use "../abstracts" as *;
 
+// Text input / textarea; the search field below is the same box with an icon inside.
+.input {
+  @include field;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+
+  &:focus-visible {
+    outline: none;
+    border-color: var(--color-accent);
+  }
+
+  &--multiline {
+    height: auto;
+    min-height: 120px;
+    padding: 10px;
+    line-height: 1.5;
+    resize: vertical;
+  }
+}
+
+// Checkboxes, radios and sliders everywhere take the accent color.
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
 .search-field {
-  @include hover-transition(border-color);
+  @include field;
   display: flex;
   align-items: center;
   gap: $space-2;
   width: 300px;
   height: 36px;
   padding: 0 10px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: $radius-md;
 
   &:focus-within {
     border-color: var(--color-accent);

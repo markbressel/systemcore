@@ -1,0 +1,266 @@
+@use "../abstracts" as *;
+
+// News page: feed (lead story + card grid) beside the SystemCore changelog.
+.news {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  align-items: start;
+  gap: $space-6;
+
+  @include below($bp-standard) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  &__feed {
+    display: flex;
+    flex-direction: column;
+    gap: $space-4;
+    min-width: 0;
+  }
+
+  &__filters {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: $space-3;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: $space-4;
+  }
+
+  &__more {
+    align-self: center;
+  }
+
+}
+
+.news-card {
+  --topic: var(--color-accent);
+  @include surface(var(--color-bg-tertiary));
+  @include hover-transition(border-color, transform, box-shadow);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: $radius-lg;
+
+  &:hover {
+    border-color: var(--color-accent);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px -12px var(--color-accent);
+  }
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+
+  &__picture {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse at 30% 20%, color-mix(in srgb, var(--topic) 35%, transparent), transparent 70%),
+      var(--color-bg-secondary);
+
+    &--hardware { --topic: var(--color-chart-cpu); }
+    &--tech { --topic: var(--color-chart-gpu); }
+    &--gaming { --topic: var(--color-chart-memory); }
+
+    img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.4s ease;
+    }
+  }
+
+  &:hover &__picture img {
+    transform: scale(1.04);
+  }
+
+  &__placeholder {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    color: var(--topic);
+    opacity: 0.7;
+    transform: translate(-50%, -50%);
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: $space-2;
+    padding: $space-4;
+  }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $space-2 $space-3;
+    color: var(--color-text-muted);
+    font-size: $font-xs;
+  }
+
+  &__source {
+    @include label-caps;
+    color: var(--topic);
+
+    &--hardware { --topic: var(--color-chart-cpu); }
+    &--tech { --topic: var(--color-chart-gpu); }
+    &--gaming { --topic: var(--color-chart-memory); }
+  }
+
+  &__title {
+    display: -webkit-box;
+    overflow: hidden;
+    margin: 0;
+    font-size: $font-md;
+    font-weight: $weight-semibold;
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  &__summary {
+    display: -webkit-box;
+    overflow: hidden;
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: $font-sm;
+    line-height: 1.5;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  // Lead story: picture beside the text, bigger headline, HUD corners like the panels.
+  &--featured {
+    @include hud-corners;
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+
+    @include below($bp-compact) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  &--featured &__picture {
+    aspect-ratio: auto;
+    min-height: 260px;
+  }
+
+  &--featured &__body {
+    justify-content: center;
+    gap: $space-3;
+    padding: $space-6;
+  }
+
+  &--featured &__title {
+    font-family: $font-family-display;
+    font-size: $font-xl;
+    -webkit-line-clamp: 4;
+  }
+
+  &--featured &__summary {
+    font-size: $font-base;
+    -webkit-line-clamp: 5;
+  }
+}
+
+// "What's new in SystemCore": a timeline down the side.
+.news-changelog {
+  position: sticky;
+  top: 0;
+
+  &__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__release {
+    position: relative;
+    padding: 0 0 $space-4 $space-5;
+    border-left: 2px solid var(--color-border-subtle);
+
+    &:last-child {
+      padding-bottom: 0;
+      border-left-color: transparent;
+    }
+
+    // Timeline dot.
+    &::before {
+      content: "";
+      position: absolute;
+      top: 5px;
+      left: -6px;
+      width: 10px;
+      height: 10px;
+      background: var(--color-bg-tertiary);
+      border: 2px solid var(--color-text-muted);
+      border-radius: 50%;
+    }
+
+    &--latest::before {
+      background: var(--color-accent);
+      border-color: var(--color-accent);
+      box-shadow: 0 0 10px var(--color-accent);
+    }
+
+    summary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: $space-1 $space-2;
+      cursor: pointer;
+      list-style: none;
+
+      &::-webkit-details-marker {
+        display: none;
+      }
+    }
+
+    ul {
+      margin: $space-2 0 0;
+      padding-left: $space-4;
+      color: var(--color-text-secondary);
+      font-size: $font-sm;
+      line-height: 1.55;
+
+      li + li {
+        margin-top: $space-1;
+      }
+    }
+  }
+
+  &__version {
+    color: var(--color-accent);
+    font-family: $font-family-display;
+    font-size: $font-md;
+    font-weight: $weight-semibold;
+    letter-spacing: 0.04em;
+  }
+
+  &__date {
+    @include mono-num;
+    margin-left: auto;
+    color: var(--color-text-muted);
+    font-size: $font-xs;
+  }
+
+  &__title {
+    flex-basis: 100%;
+    font-weight: $weight-semibold;
+  }
+}

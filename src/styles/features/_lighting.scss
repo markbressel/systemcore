@@ -329,3 +329,30 @@
     flex: 1;
   }
 }
+
+// Part properties: each row is a dt/dd pair wrapped for React keys; the wrapper must not break the grid.
+.lighting__fact {
+  display: contents;
+}
+
+.lighting__facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.lighting__sub {
+  margin-top: $space-2;
+  padding-top: $space-3;
+  font-size: $font-sm;
+  border-top: 1px solid var(--color-border);
+}
+
+.lighting__modules {
+  display: flex;
+  flex-direction: column;
+  gap: $space-1;
+  margin: 0;
+  padding-left: $space-4;
+  color: var(--color-text-secondary);
+  font-size: $font-sm;
+}

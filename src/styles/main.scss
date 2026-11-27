@@ -31,6 +31,10 @@
 @use "features/storage";
 @use "features/lighting";
 @use "features/display";
+@use "features/news";
+@use "features/about";
+@use "features/updater";
+@use "features/loadout";
 
 @use "utilities/helpers";
 @use "utilities/animations";

@@ -177,9 +177,8 @@ function MemoryView({ s, tm }: ViewProps) {
       <HardwareCard title={t("Memory distribution")} icon={PieChart}>
         {usedPct != null && total != null && used != null ? (
           <div className="distribution">
-            <div className="distribution__bar" role="img" aria-label={t("{used} in use, {free} available", { used: formatPercent(usedPct), free: formatPercent(100 - usedPct) })}>
-              <div className="distribution__part distribution__part--memory" style={{ width: `${smoothUsed ?? usedPct}%` }} />
-              <div className="distribution__part distribution__part--free" />
+            <div className="metric-indicator metric-indicator--memory" role="img" aria-label={t("{used} in use, {free} available", { used: formatPercent(usedPct), free: formatPercent(100 - usedPct) })}>
+              <div className="metric-indicator__fill" style={{ width: `${smoothUsed ?? usedPct}%` }} />
             </div>
             <div className="distribution__legend">
               <span className="chart__legend-item" style={{ ["--series-color" as string]: "var(--color-chart-memory)" }}>

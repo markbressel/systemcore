@@ -58,19 +58,6 @@
     }
   }
 
-  &__progress {
-    height: 6px;
-    background: var(--color-bg-secondary);
-    border-radius: $radius-pill;
-    overflow: hidden;
-  }
-
-  &__progress-fill {
-    display: block;
-    height: 100%;
-    background: linear-gradient(90deg, var(--color-accent-active), var(--color-accent));
-  }
-
   &__go {
     @include flex-center;
     @include hover-transition(background, filter);
@@ -179,4 +166,35 @@
 .perf-hero__head {
   @include flex-between;
   gap: $space-4;
+}
+
+// "Will this game run?" card on the benchmark page.
+.game-search {
+  &__form,
+  &__hits,
+  &__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $space-2;
+    margin-bottom: $space-4;
+  }
+
+  &__head {
+    gap: $space-3;
+    font-size: 1.1em;
+  }
+
+  &__sub {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    margin: $space-5 0 $space-2;
+  }
+
+  &__todo {
+    margin: 0 0 $space-3;
+    padding-left: $space-5;
+    line-height: 1.7;
+  }
 }

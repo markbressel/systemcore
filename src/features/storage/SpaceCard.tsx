@@ -61,8 +61,8 @@ export function SpaceCard({ drives }: { drives: string[] }) {
                       <Icon className="space__icon" aria-hidden="true" />
                       <span className="u-break">{e.name}</span>
                     </button>
-                    <span className="space__bar" aria-hidden="true">
-                      <span style={{ width: `${(e.bytes / largest) * 100}%` }} />
+                    <span className="space__bar metric-indicator metric-indicator--thin metric-indicator--storage" aria-hidden="true">
+                      <span className="metric-indicator__fill" style={{ width: `${(e.bytes / largest) * 100}%` }} />
                     </span>
                     <span className="space__size u-mono">{formatBytes(e.bytes)}</span>
                     <button type="button" className="button button--ghost" onClick={() => void revealPath(e.path)} aria-label={t("Show {name} in Explorer", { name: e.name })} title={t("Show in Explorer")}>

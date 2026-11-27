@@ -328,3 +328,31 @@ pub async fn set_display_color(id: String, adjust: win::display::ColorAdjust) ->
 pub async fn set_display_hardware(id: String, brightness: Option<u32>, contrast: Option<u32>) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || win::display::set_hardware(&id, brightness, contrast)).await.map_err(|e| e.to_string())?
 }
+
+/// Keyboards, mice and headsets by name (for the 3D lighting views); read-only.
+#[tauri::command]
+pub async fn list_peripherals() -> Result<Vec<win::lights::Peripheral>, String> {
+    tauri::async_runtime::spawn_blocking(win::lights::peripherals).await.map_err(|e| e.to_string())
+}
+
+/// Start with Windows (Task Scheduler task, elevated).
+#[tauri::command]
+pub fn get_autostart() -> bool {
+    win::system::startup_task_enabled()
+}
+
+#[tauri::command]
+pub async fn set_autostart(on: bool) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || win::system::set_startup_task(on)).await.map_err(|e| e.to_string())?
+}
+
+/// "Always run as administrator" (registry, read before the app window exists).
+#[tauri::command]
+pub fn get_run_as_admin() -> bool {
+    win::system::run_as_admin()
+}
+
+#[tauri::command]
+pub fn set_run_as_admin(on: bool) -> Result<(), String> {
+    win::system::set_run_as_admin(on)
+}

@@ -3,3 +3,8 @@
     transform: rotate(360deg);
   }
 }
+
+// A button icon that turns while its action runs (Refresh, Check again), same speed as the loading spinner.
+.u-spin {
+  animation: spin 0.8s linear infinite;
+}

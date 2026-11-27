@@ -27,6 +27,30 @@
   outline-offset: 2px;
 }
 
+// The one text-field look: search fields, text inputs, textareas, number fields.
+@mixin field {
+  @include hover-transition(border-color);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 13px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: $radius-md;
+
+  &:hover {
+    border-color: var(--color-text-muted);
+  }
+
+  &::placeholder {
+    color: var(--color-text-muted);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
 @mixin truncate {
   overflow: hidden;
   text-overflow: ellipsis;

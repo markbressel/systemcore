@@ -1,6 +1,6 @@
 // README screenshots from the real app: `npm run screenshots`.
 // Starts `tauri dev` with WebView2 remote debugging, walks every page, tab, settings section, the 3D lighting
-// steps and the overlay in English at a fixed size, saves docs/screenshots/<name>.png, then restores the
+// steps in English at a fixed size, saves docs/screenshots/<name>.png, then restores the
 // language and closes the app. Best run as administrator (CPU temperature, RAM lighting) on a PC with RGB devices.
 import { spawn, execSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -15,6 +15,8 @@ const OUT = "docs/screenshots";
 const nav = (label) => `document.querySelector('.sidebar__navigation button[aria-label="${label}"]')?.click()`;
 const tab = (text) => `[...document.querySelectorAll('[role=tab]')].find((b) => b.textContent.trim() === ${JSON.stringify(text)})?.click()`;
 const hotspot = (text) => `[...document.querySelectorAll('.hotspot')].find((b) => b.querySelector('.hotspot__label')?.textContent.trim() === ${JSON.stringify(text)})?.click()`;
+// React-controlled input: set the value through the native setter so React sees it, then submit its form.
+const search = (selector, text) => `(() => { const i = document.querySelector(${JSON.stringify(selector)}); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(i, ${JSON.stringify(text)}); i.dispatchEvent(new Event("input", { bubbles: true })); i.form.requestSubmit(); })()`;
 const scroll = (to) => `[...document.querySelectorAll('*')].filter((e) => e.scrollHeight > e.clientHeight + 20 && /auto|scroll/.test(getComputedStyle(e).overflowY)).forEach((e) => e.scrollTo(0, ${to === "bottom" ? "e.scrollHeight" : "0"}))`;
 
 /** [file, steps to run before the shot, settle time in ms] — every page, tab and section of the app. */
@@ -37,13 +39,34 @@ const SHOTS = [
   ["display", [nav("Display")], 2500],
   ["speedtest", [nav("Speed Test")], 2000],
   ["benchmark", [nav("Benchmark")], 2000],
+  // Steps may be promises (awaited): wait for the Steam results before scrolling to them.
+  [
+    "benchmark-games",
+    [
+      nav("Benchmark"),
+      "new Promise((r) => setTimeout(r, 1500))",
+      search(".game-search__form input", "Elden Ring"),
+      "new Promise((r) => setTimeout(r, 6000))",
+      "document.querySelector('.game-search__hits button')?.click()",
+      "new Promise((r) => setTimeout(r, 6000))",
+      "document.querySelector('.game-search__head')?.scrollIntoView({ block: 'start' })",
+    ],
+    1500,
+  ],
   ["startup", [nav("Startup Apps")], 2500],
+  ["updater", [nav("Updater")], 30000],
+  ["loadout", [nav("Loadout")], 15000],
+  ["news", [nav("News")], 5000],
+  ["about", [nav("About")], 2500],
   ["settings", [nav("Settings"), tab("Startup & tray")], 2000],
   ["settings-overlay", [tab("Overlay")], 1500],
   ["settings-alerts", [tab("Alerts")], 1500],
   ["settings-gaming", [tab("Gaming")], 1500],
   ["settings-appearance", [tab("Appearance")], 1500],
 ];
+
+// `ONLY=benchmark-games,news npm run screenshots` retakes just those shots.
+const ONLY = process.env.ONLY ? new Set(process.env.ONLY.split(",")) : null;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -125,22 +148,15 @@ try {
   await sleep(9000); // ignition splash + first telemetry samples + device scan
   mkdirSync(OUT, { recursive: true });
 
-  for (const [file, steps, settle] of SHOTS) {
+  for (const [file, steps, settle] of SHOTS.filter(([f]) => !ONLY || ONLY.has(f))) {
     for (const s of steps) await c.run(s);
     await sleep(settle);
-    if (!file.endsWith("-details")) await c.run(scroll("top"));
+    if (!file.endsWith("-details") && !file.endsWith("-games")) await c.run(scroll("top"));
     await shot(c, file);
   }
 
-  // The overlay is its own window: open it from the top bar, capture it, close it again.
-  await c.run(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === "Overlay")?.click()`);
-  const overlay = await findWindow(false, 20).catch((e) => (console.warn(e.message), null));
-  if (overlay) {
-    await sleep(2500);
-    await shot(overlay, "overlay");
-    overlay.close();
-    await c.run(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === "Close overlay")?.click()`);
-  }
+  // The overlay window cannot open in this debug-port session (its WebView2 would need the same browser
+  // arguments), so docs/screenshots/overlay.png is taken separately: normal start, Ctrl+Shift+O, screen capture.
 
   if (original !== "en") await c.run(setLanguage(original)); // null: back to "follow Windows"
   c.close();

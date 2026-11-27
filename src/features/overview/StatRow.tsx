@@ -17,8 +17,8 @@ export function StatRow({ label, value, percent, scaleHint }: Props) {
     <div className="stat-row" title={scaleHint}>
       <div className="stat-row__meta">
         <span className="stat-row__label">{label}</span>
-        <span className="stat-row__track" aria-hidden="true">
-          {fill != null && <span className="stat-row__fill" style={{ width: `${fill}%` }} />}
+        <span className="stat-row__track metric-indicator metric-indicator--thin" aria-hidden="true">
+          {fill != null && <span className="metric-indicator__fill" style={{ width: `${fill}%` }} />}
         </span>
       </div>
       <div className="stat-row__value">{value}</div>

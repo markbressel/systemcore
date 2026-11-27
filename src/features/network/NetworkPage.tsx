@@ -1,5 +1,5 @@
-import { AppWindow, ArrowDown, ArrowUp, Network } from "lucide-react";
-import { useState } from "react";
+import { AppWindow, ArrowDown, ArrowUp, Network, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import { LoadingState } from "../../components/feedback/States";
 import { StatusBadge, type Tone } from "../../components/feedback/StatusBadge";
@@ -21,15 +21,22 @@ const STATE: Record<string, [Tone, string]> = {
 export function NetworkPage() {
   const { system: s, processes, history, stale } = useTelemetry();
   const [showIdle, setShowIdle] = useState(false);
+  const traffic = (p: { netRxBytesPerSec: number | null; netTxBytesPerSec: number | null }) => (p.netRxBytesPerSec ?? 0) + (p.netTxBytesPerSec ?? 0);
+  const live = (processes?.processes ?? [])
+    .filter((p) => traffic(p) > 0)
+    .sort((a, b) => traffic(b) - traffic(a))
+    .slice(0, 10);
+  // The program list is a snapshot (taken on first load and on Refresh): a live list reshuffles every second.
+  const [snapshot, setSnapshot] = useState<typeof live | null>(null);
+  useEffect(() => {
+    // The first process sample has no rates yet, so wait for the first non-empty list.
+    if (!snapshot && live.length) setSnapshot(live);
+  }, [processes, snapshot, live]);
+  const apps = snapshot ?? live;
   if (!s) return <LoadingState />;
   const n = s.network;
   // Windows lists many virtual/filter adapters that never carry traffic.
   const adapters = n.adapters.filter((a) => showIdle || a.totalRxBytes + a.totalTxBytes > 0);
-  const traffic = (p: { netRxBytesPerSec: number | null; netTxBytesPerSec: number | null }) => (p.netRxBytesPerSec ?? 0) + (p.netTxBytesPerSec ?? 0);
-  const apps = (processes?.processes ?? [])
-    .filter((p) => traffic(p) > 0)
-    .sort((a, b) => traffic(b) - traffic(a))
-    .slice(0, 10);
 
   return (
     <PageContainer title={t("Network")} subtitle={t("Throughput calculated from cumulative adapter byte counters")}>
@@ -56,7 +63,17 @@ export function NetworkPage() {
         />
       </HardwareCard>
 
-      <HardwareCard title={t("Programs using the network")} icon={AppWindow}>
+      <HardwareCard
+        title={t("Programs using the network")}
+        icon={AppWindow}
+        aside={
+          processes?.netPerProcess && (
+            <button type="button" className="button button--secondary" onClick={() => setSnapshot(live)}>
+              <RefreshCw className="button__icon" aria-hidden="true" /> {t("Refresh")}
+            </button>
+          )
+        }
+      >
         {!processes ? (
           <LoadingState label={t("Enumerating processes…")} />
         ) : !processes.netPerProcess ? (

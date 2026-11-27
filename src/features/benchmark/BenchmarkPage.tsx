@@ -8,8 +8,10 @@ import { Gauge } from "../../components/metrics/Gauge";
 import { t } from "../../lib/i18n";
 import { useTelemetry } from "../../stores/telemetry";
 import { PHASE_SECONDS, runBenchmark, stopBenchmark, useBenchmark } from "../../stores/benchmark";
+import { GameSearch } from "./GameSearch";
 
 const TOTAL = PHASE_SECONDS * 2;
+const gbOrNull = (bytes: number | null | undefined) => (bytes == null ? null : bytes / 1024 ** 3);
 const temp = (v: number | null) => (v == null ? "—" : `${v.toFixed(0)} °C`);
 
 /** "12 % below your best" against earlier runs; null when there is nothing to compare with. */
@@ -86,8 +88,8 @@ export function BenchmarkPage() {
               );
             })}
           </ol>
-          <div className="speedtest__progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}>
-            <span className="speedtest__progress-fill" style={{ width: `${progress}%` }} />
+          <div className="metric-indicator" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}>
+            <span className="metric-indicator__fill" style={{ width: `${progress}%` }} />
           </div>
           {running ? (
             <button type="button" className="speedtest__go speedtest__go--stop" onClick={stopBenchmark}>
@@ -118,6 +120,15 @@ export function BenchmarkPage() {
         <ScoreTile icon={Cpu} label={t("CPU score")} score={shown.cpuScore} compare={cpuCompare} active={b.phase === "cpu"} />
         <ScoreTile icon={MonitorPlay} label={t("GPU score")} score={shown.gpuScore} compare={gpuCompare} active={b.phase === "gpu"} />
       </div>
+
+      <GameSearch
+        pc={{
+          cpu: latest?.cpuScore ?? null,
+          gpu: latest?.gpuScore ?? null,
+          vramGb: gbOrNull(system?.gpus.value?.[0]?.vramTotalBytes.value),
+          ramGb: gbOrNull(system?.memory.totalBytes.value),
+        }}
+      />
 
       {b.cpuTemp.length > 0 && (
         <HardwareCard title={t("Temperature during the test")} icon={Thermometer}>

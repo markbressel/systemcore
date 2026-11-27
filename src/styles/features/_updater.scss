@@ -1,0 +1,54 @@
+@use "../abstracts" as *;
+
+// Updater page: summary (count, download size, drive) above the program table.
+.updater-summary {
+  display: grid;
+  grid-template-columns: minmax(150px, auto) minmax(180px, auto) minmax(0, 1fr);
+  align-items: start;
+  gap: $space-8;
+  padding: $space-6 $space-8;
+  background: radial-gradient(ellipse at 10% 50%, var(--color-accent-soft) 0%, var(--color-bg-tertiary) 55%);
+
+  @include below($bp-compact) {
+    grid-template-columns: 1fr 1fr;
+
+    .updater-summary__disk {
+      grid-column: 1 / -1;
+    }
+  }
+
+  &__stat,
+  &__disk {
+    display: flex;
+    flex-direction: column;
+    gap: $space-2;
+    min-width: 0;
+  }
+
+  &__label {
+    @include label-caps;
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    color: var(--color-text-muted);
+  }
+
+  &__value {
+    @include display-num;
+    color: var(--color-text-primary);
+    font-size: $font-display;
+    line-height: 1;
+  }
+
+  &__sub {
+    color: var(--color-text-secondary);
+    font-size: $font-sm;
+  }
+}
+
+.updater__id {
+  @include mono-num;
+  color: var(--color-text-muted);
+  font-size: $font-xs;
+  font-weight: $weight-regular;
+}

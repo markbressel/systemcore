@@ -14,3 +14,8 @@
     DetailPrint "PawnIO setup finished ($1)"
   ${EndIf}
 !macroend
+
+; "Start with Windows" is a Task Scheduler task (SystemCore runs as administrator); remove it with the app.
+!macro NSIS_HOOK_POSTUNINSTALL
+  nsExec::Exec 'schtasks /Delete /TN "SystemCore" /F'
+!macroend

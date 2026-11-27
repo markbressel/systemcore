@@ -115,17 +115,9 @@
   gap: $space-2;
   width: 100%;
 
+  // The bar itself is a .metric-indicator--thin.
   &__track {
+    flex: none;
     width: 36px;
-    height: 4px;
-    background: var(--color-surface-active);
-    border-radius: $radius-pill;
-    overflow: hidden;
-  }
-
-  &__fill {
-    display: block;
-    height: 100%;
-    background: var(--color-chart-cpu);
   }
 }

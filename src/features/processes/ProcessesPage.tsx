@@ -204,8 +204,8 @@ export function ProcessesPage() {
                         ) : (
                           <span className="cell-bar">
                             {formatPercent(cpu)}
-                            <span className="cell-bar__track" aria-hidden="true">
-                              <span className="cell-bar__fill" style={{ width: `${Math.min(100, cpu)}%` }} />
+                            <span className="cell-bar__track metric-indicator metric-indicator--thin metric-indicator--cpu" aria-hidden="true">
+                              <span className="metric-indicator__fill" style={{ width: `${Math.min(100, cpu)}%` }} />
                             </span>
                           </span>
                         )}

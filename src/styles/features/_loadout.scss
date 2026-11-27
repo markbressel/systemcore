@@ -1,0 +1,151 @@
+@use "../abstracts" as *;
+
+// Loadout page: hardware summary (dial), "picked for your PC", then category cards.
+.loadout-hero {
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    margin: 0;
+    font-family: $font-family-display;
+    font-size: $font-xl;
+    letter-spacing: 0.04em;
+  }
+
+  &__parts {
+    display: flex;
+    flex-direction: column;
+    gap: $space-2;
+    margin: 0;
+    padding: 0;
+    color: var(--color-text-secondary);
+    font-size: $font-sm;
+    list-style: none;
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: $space-2;
+    }
+  }
+}
+
+.loadout-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-3;
+}
+
+.loadout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: $space-4;
+}
+
+.loadout-card {
+  --topic: var(--color-accent);
+  @include surface(var(--color-bg-tertiary));
+  @include hover-transition(border-color, transform);
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+  min-width: 0;
+  padding: $space-4;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: $radius-lg;
+
+  &:hover {
+    border-color: var(--topic);
+    transform: translateY(-2px);
+  }
+
+  &--launchers { --topic: var(--color-chart-gpu); }
+  &--social { --topic: var(--color-chart-memory); }
+  &--performance { --topic: var(--color-chart-cpu); }
+  &--maintenance { --topic: var(--color-chart-storage); }
+  &--essentials { --topic: var(--color-info); }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: $space-3;
+  }
+
+  // Official icon on a light tile (logos are made for light backgrounds); monogram in the category color as fallback.
+  &__mark {
+    @include flex-center;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    color: var(--topic);
+    font-family: $font-family-display;
+    font-size: $font-lg;
+    font-weight: $weight-semibold;
+    background: color-mix(in srgb, var(--topic) 14%, var(--color-bg-secondary));
+    border: 1px solid color-mix(in srgb, var(--topic) 45%, transparent);
+    border-radius: $radius-md;
+  }
+
+  &__mark--icon {
+    background: #f2f3f5;
+    border-color: var(--color-border-subtle);
+
+    img {
+      width: 30px;
+      height: 30px;
+      object-fit: contain;
+    }
+  }
+
+  &__site {
+    align-self: flex-start;
+    margin-left: auto;
+  }
+
+  &__titles {
+    display: flex;
+    flex-direction: column;
+    gap: $space-1;
+    min-width: 0;
+  }
+
+  &__name {
+    @include truncate;
+    margin: 0;
+    font-size: $font-md;
+    font-weight: $weight-semibold;
+  }
+
+  &__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-1 $space-2;
+    font-size: $font-xs;
+  }
+
+  &__for {
+    color: var(--color-accent);
+    font-weight: $weight-semibold;
+  }
+
+  &__tag {
+    color: var(--color-text-muted);
+  }
+
+  &__desc {
+    flex: 1;
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: $font-sm;
+    line-height: 1.5;
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $space-2;
+  }
+}

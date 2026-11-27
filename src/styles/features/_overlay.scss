@@ -247,10 +247,11 @@ html:has(.overlay) body {
   &__row {
     --tone: var(--color-chart-cpu);
     display: grid;
-    grid-template-columns: 34px 1fr auto;
+    // Fixed temperature column (empty for RAM) keeps every bar the same width.
+    grid-template-columns: 34px 44px 1fr auto;
     grid-template-areas:
-      "label bar value"
-      ". details details";
+      "label temp bar value"
+      ". . details details";
     align-items: center;
     column-gap: 8px;
     row-gap: 1px;
@@ -308,6 +309,14 @@ html:has(.overlay) body {
     color: var(--color-text-secondary);
     font-size: 10.5px;
     white-space: nowrap;
+  }
+
+  &__temp {
+    @include mono-num;
+    grid-area: temp;
+    color: var(--color-text-primary);
+    font-size: 13px;
+    font-weight: $weight-semibold;
   }
 
   &__hot { color: var(--color-danger); }

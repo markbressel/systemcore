@@ -179,22 +179,16 @@
   color: var(--color-text-secondary);
 
   input {
+    @include field;
     @include mono-num;
     width: 72px;
-    padding: $space-2 $space-3;
-    color: var(--color-text-primary);
+    height: 36px;
+    padding: 0 $space-3;
     text-align: right;
-    background: var(--color-bg-secondary);
-    border: 1px solid var(--color-border);
-    border-radius: $radius-md;
 
     &:focus-visible {
-      @include focus-ring;
-    }
-
-    &:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
+      outline: none;
+      border-color: var(--color-accent);
     }
   }
 }

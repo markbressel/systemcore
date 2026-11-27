@@ -1,4 +1,8 @@
 mod benchmark;
+mod steam;
+mod news;
+mod feedback;
+mod updater;
 mod cleanup;
 mod collector;
 mod gamemode;
@@ -79,6 +83,9 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
 
 pub fn run() {
     let overlay_hotkey = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyO);
+    if platform::windows::system::elevate_at_start() {
+        return;
+    }
     platform::windows::system::wait_for_previous_instance();
     tauri::Builder::default()
         // Must be the first plugin: a second launch just brings the running window forward.
@@ -110,6 +117,14 @@ pub fn run() {
             let hist = app.state::<history::SharedHistory>().inner().clone();
             collector::spawn(app.handle().clone(), shared, prefs, hist);
             build_tray(app)?;
+            // Start with Windows used to be a Run-key entry, which Windows skips for elevated apps: move it to the task.
+            {
+                use tauri_plugin_autostart::ManagerExt;
+                let run_key = app.autolaunch();
+                if platform::windows::system::is_elevated() && run_key.is_enabled().unwrap_or(false) && platform::windows::system::set_startup_task(true).is_ok() {
+                    let _ = run_key.disable();
+                }
+            }
             // Another app may own the hotkey; the overlay stays reachable from the tray and the UI.
             if let Err(e) = app.global_shortcut().register(overlay_hotkey) {
                 eprintln!("overlay hotkey unavailable: {e}");
@@ -154,6 +169,17 @@ pub fn run() {
             commands::save_report,
             commands::run_cpu_benchmark,
             commands::cancel_benchmark,
+            steam::search_games,
+            steam::game_requirements,
+            news::fetch_news,
+            news::open_link,
+            feedback::send_feedback,
+            updater::list_upgrades,
+            updater::upgrade_size,
+            updater::upgrade_package,
+            updater::list_installed,
+            updater::install_package,
+            updater::download_installer,
             commands::scan_folder,
             commands::cleanup_targets,
             commands::clean_target,
@@ -161,6 +187,11 @@ pub fn run() {
             commands::fso_status,
             commands::enable_fso,
             commands::list_rgb_devices,
+            commands::list_peripherals,
+            commands::get_autostart,
+            commands::get_run_as_admin,
+            commands::set_run_as_admin,
+            commands::set_autostart,
             commands::hardware_driver_status,
             commands::list_displays,
             commands::set_display_color,
