@@ -16,8 +16,9 @@
   &__dial .gauge {
     max-width: 380px;
 
+    // Speeds like "123.4" are wider than a percentage.
     .gauge__value {
-      font-size: 40px;
+      font-size: 10.5cqi;
     }
   }
 
@@ -172,4 +173,10 @@
     color: var(--color-text-muted);
     font-size: $font-sm;
   }
+}
+
+// Performance page: the same panel and dial as the speed test, with a title row above the readings.
+.perf-hero__head {
+  @include flex-between;
+  gap: $space-4;
 }

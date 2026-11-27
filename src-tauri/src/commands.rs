@@ -1,5 +1,7 @@
 //! Narrow IPC commands. No command accepts paths or shell input. Commands that change the system:
-//! `kill_process`, `set_process_priority` and `set_startup_enabled` (only for entries that exist).
+//! `kill_process`, `set_process_priority`, `set_startup_enabled` (only for entries that exist) and
+//! `set_rgb_color` (only for lighting devices found by `list_rgb_devices`), `set_display_color` and
+//! `set_display_hardware` (only for displays Windows lists).
 
 use crate::collector::Shared;
 use crate::domain::Latest;
@@ -264,6 +266,17 @@ pub fn reveal_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
     app.opener().reveal_item_in_dir(&p).map_err(|e| e.to_string())
 }
 
+/// Whether fullscreen optimizations are switched off (then the overlay cannot show over fullscreen games).
+#[tauri::command]
+pub fn fso_status() -> crate::platform::windows::fso::FsoStatus {
+    crate::platform::windows::fso::status()
+}
+
+#[tauri::command]
+pub fn enable_fso() -> Result<(), String> {
+    crate::platform::windows::fso::enable()
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -271,4 +284,47 @@ mod tests {
         assert_eq!(super::url_encode("svchost.exe process"), "svchost.exe%20process");
         assert_eq!(super::url_encode("a&b=c/é"), "a%26b%3Dc%2F%C3%A9");
     }
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DriverStatus {
+    installed: bool,
+    elevated: bool,
+}
+
+/// PawnIO driver (RAM/motherboard RGB, CPU temperature): installed, and usable by this process.
+#[tauri::command]
+pub fn hardware_driver_status() -> DriverStatus {
+    DriverStatus { installed: win::pawnio::installed(), elevated: win::system::is_elevated() }
+}
+
+#[tauri::command]
+pub async fn list_rgb_devices() -> Result<Vec<win::lights::RgbDevice>, String> {
+    tauri::async_runtime::spawn_blocking(win::lights::list).await.map_err(|e| e.to_string())
+}
+
+/// `color` is "#rrggbb".
+#[tauri::command]
+pub async fn set_rgb_color(id: String, color: String) -> Result<(), String> {
+    let hex = color.strip_prefix('#').filter(|h| h.len() == 6).ok_or("color must be #rrggbb")?;
+    let c = u32::from_str_radix(hex, 16).map_err(|_| "color must be #rrggbb")?.to_be_bytes();
+    tauri::async_runtime::spawn_blocking(move || win::lights::set_color(&id, [c[1], c[2], c[3]])).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn list_displays() -> Result<Vec<win::display::Display>, String> {
+    tauri::async_runtime::spawn_blocking(win::display::list).await.map_err(|e| e.to_string())
+}
+
+/// Picture adjustment through the gamma ramp (+ NVIDIA vibrance); values are clamped in `display::ramp`.
+#[tauri::command]
+pub async fn set_display_color(id: String, adjust: win::display::ColorAdjust) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || win::display::apply(&id, &adjust)).await.map_err(|e| e.to_string())?
+}
+
+/// The monitor's own brightness/contrast over DDC/CI.
+#[tauri::command]
+pub async fn set_display_hardware(id: String, brightness: Option<u32>, contrast: Option<u32>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || win::display::set_hardware(&id, brightness, contrast)).await.map_err(|e| e.to_string())?
 }

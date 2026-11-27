@@ -3,3 +3,5 @@ dist/
 src-tauri/target/
 src-tauri/gen/
 *-setup.exe
+# Third-party installer bundled with the app (redistribution allowed): see src-tauri/windows/hooks.nsh
+!src-tauri/resources/pawnio/PawnIO_setup.exe

@@ -69,7 +69,6 @@ export function OverviewPage({ onNavigate, onOpenPerformance }: Props) {
 
       <div className="cockpit-stats">
         <div className="cockpit-stats__column">
-          <StatRow label={t("CPU Temperature")} percent={s.cpu.temperatureC.value} value={<MetricValue metric={s.cpu.temperatureC} format={(v) => [v.toFixed(0), "°C"]} />} />
           <StatRow
             label={t("CPU Frequency")}
             percent={ratio(s.cpu.frequencyMhz.value, s.cpu.peakFrequencyMhz.value)}
@@ -95,7 +94,6 @@ export function OverviewPage({ onNavigate, onOpenPerformance }: Props) {
         <div className="cockpit-stats__column">
           {gpu ? (
             <>
-              <StatRow label={t("GPU Temperature")} percent={gpu.temperatureC.value} value={<MetricValue metric={gpu.temperatureC} format={(v) => [v.toFixed(0), "°C"]} />} />
               <StatRow
                 label={t("GPU Clock")}
                 percent={ratio(gpu.coreClockMhz.value, gpu.maxCoreClockMhz.value)}

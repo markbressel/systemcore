@@ -1,6 +1,6 @@
 [package]
 name = "systemcore"
-version = "0.2.0"
+version = "0.3.0"
 description = "SystemCore - desktop system monitor"
 edition = "2021"
 
@@ -28,11 +28,12 @@ tauri-plugin-single-instance = "2"
 # Windows platform adapters: PDH counters + commit charge, NVIDIA sensors (NVML, loaded at runtime), WMI,
 # ETW present events (FPS), registry (startup apps), process priority and foreground-window checks.
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Performance", "Win32_System_ProcessStatus", "Win32_System_Threading", "Win32_UI_WindowsAndMessaging", "Win32_Graphics_Gdi", "Win32_UI_Shell"] }
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Performance", "Win32_System_ProcessStatus", "Win32_System_Threading", "Win32_UI_WindowsAndMessaging", "Win32_Graphics_Gdi", "Win32_UI_Shell", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_Security", "Win32_Devices_Display", "Win32_UI_ColorSystem", "Win32_System_LibraryLoader", "Devices_Lights", "Devices_Enumeration", "Foundation", "Foundation_Collections", "UI"] }
 nvml-wrapper = "0.13"
 wmi = "0.18"
 ferrisetw = "1.2.0"
 winreg = "0.56.0"
+hidapi = { version = "2", default-features = false, features = ["windows-native"] }
 
 # Dev builds: full debug info for every dependency made target/ grow to tens of GB.
 # Keep line numbers for our own crate (readable panics), none for dependencies.

@@ -1,8 +1,8 @@
 @use "../abstracts" as *;
 
 .settings {
-  flex: none;
-  max-width: 820px;
+  display: flex;
+  flex-direction: column;
   gap: 0;
 
   .panel__header {
@@ -200,19 +200,17 @@
 }
 
 // Dial menu on the left, the chosen section on the right; stacked on narrow windows.
-.settings-layout {
-  display: grid;
-  grid-template-columns: 290px minmax(0, 1fr);
-  gap: $space-6;
+// Same panel and dial size as the speed test; the settings rows sit where the speed test's controls are.
+// Doubled class: .speedtest (loaded later) centers vertically, which let a long section push the dial down.
+.speedtest.settings-panel {
   align-items: start;
+}
 
-  @include below($bp-compact) {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
+.settings-panel {
+  // The dial stays where the benchmark's dial is and follows while long sections scroll.
   &__dial {
     position: sticky;
-    top: 0;
+    top: $space-6;
   }
 
   &__content {
@@ -226,9 +224,11 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    // Sized as a share of the dial (the .gauge container), like the gauge text.
+    --icon: clamp(34px, 14cqi, 64px);
     gap: 3px;
     // Center the round icon on its dial position; the label hangs below it.
-    transform: translate(-50%, -21px);
+    transform: translate(-50%, calc(var(--icon) / -2));
     color: var(--color-text-secondary);
 
     &:hover {
@@ -247,15 +247,15 @@
   &__icon {
     @include hover-transition(color, background, border-color, box-shadow);
     @include flex-center;
-    width: 42px;
-    height: 42px;
+    width: var(--icon);
+    height: var(--icon);
     border: 1px solid var(--color-border);
     border-radius: 50%;
     background: var(--color-surface);
 
     svg {
-      width: 18px;
-      height: 18px;
+      width: 43%;
+      height: 43%;
     }
   }
 
@@ -273,7 +273,7 @@
 
   &__label {
     font-family: $font-family-display;
-    font-size: 10px;
+    font-size: clamp(10px, 3.4cqi, 15px);
     font-weight: $weight-semibold;
     letter-spacing: 0.04em;
     white-space: nowrap;

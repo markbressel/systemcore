@@ -9,7 +9,11 @@ use windows::Win32::System::Threading::{
     PROCESS_SYNCHRONIZE, WaitForSingleObject,
 };
 use windows::Win32::UI::Shell::{IsUserAnAdmin, ShellExecuteW};
-use windows::Win32::UI::WindowsAndMessaging::{GetClassNameW, GetForegroundWindow, GetWindowRect, GetWindowThreadProcessId, SW_SHOWNORMAL};
+use windows::Win32::Foundation::HWND;
+use windows::Win32::UI::WindowsAndMessaging::{
+    GetClassNameW, GetForegroundWindow, GetWindowRect, GetWindowThreadProcessId, SetWindowPos, HWND_TOPMOST, SWP_ASYNCWINDOWPOS, SWP_NOACTIVATE,
+    SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, SW_SHOWNORMAL,
+};
 
 pub struct Foreground {
     pub pid: u32,
@@ -71,6 +75,13 @@ pub fn relaunch_elevated() -> Result<(), String> {
     let r = unsafe { ShellExecuteW(None, &HSTRING::from("runas"), &HSTRING::from(exe.as_os_str()), &args, PCWSTR::null(), SW_SHOWNORMAL) };
     // ShellExecute reports success as a value above 32; the user declining UAC is the usual failure.
     if r.0 as usize > 32 { Ok(()) } else { Err("Administrator rights were not granted.".into()) }
+}
+
+/// Puts a window back on top of the topmost band without focusing it. Fullscreen games can push
+/// themselves above other topmost windows; async so a busy UI thread never blocks the caller.
+pub fn keep_on_top(hwnd: isize) {
+    let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW | SWP_ASYNCWINDOWPOS;
+    let _ = unsafe { SetWindowPos(HWND(hwnd as *mut core::ffi::c_void), Some(HWND_TOPMOST), 0, 0, 0, 0, flags) };
 }
 
 pub const PRIORITIES: [(&str, PROCESS_CREATION_FLAGS); 5] = [

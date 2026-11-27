@@ -262,3 +262,36 @@ export interface CleanupTarget {
   hint: string;
   bytes: number;
 }
+
+/** A lighting device the backend can color (mirror of platform/windows/lights.rs). */
+export interface RgbDevice {
+  id: string;
+  name: string;
+  /** keyboard, mouse, motherboard, case, gpu, ram, fan, strip, headset, other */
+  kind: string;
+  backend: string;
+  zones: number;
+  /** false: Windows Dynamic Lighting currently gives control to another app. */
+  available: boolean;
+}
+
+export interface DisplayRange {
+  min: number;
+  current: number;
+  max: number;
+}
+
+/** A monitor (mirror of platform/windows/display.rs). */
+export interface DisplayInfo {
+  /** GDI device name, e.g. "\\.\DISPLAY1". */
+  id: string;
+  name: string;
+  primary: boolean;
+  width: number;
+  height: number;
+  /** The monitor's own settings over DDC/CI; null when it does not answer. */
+  hwBrightness: DisplayRange | null;
+  hwContrast: DisplayRange | null;
+  /** NVIDIA digital vibrance; null on other GPUs. */
+  vibrance: DisplayRange | null;
+}

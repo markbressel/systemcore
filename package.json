@@ -1,6 +1,6 @@
 {
   "name": "systemcore",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -21,12 +21,14 @@
     "@tauri-apps/plugin-updater": "^2.14.1",
     "lucide-react": "^1.78.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "three": "^0.170.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.12.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.170.0",
     "@vitejs/plugin-react": "^6.3.0",
     "sass": "^1.108.2",
     "typescript": "^7.0.2",

@@ -1,9 +1,17 @@
 @use "../abstracts" as *;
 
+// Big screens: scale the whole UI up instead of stretching it, so a maximized window on a 1440p/4K
+// monitor looks like the normal layout, just larger. Height is divided back so it still fits exactly.
 .app-shell {
+  --ui-scale: 1;
+  zoom: var(--ui-scale);
   display: grid;
   grid-template-columns: $sidebar-width minmax(0, 1fr);
-  height: 100vh;
+  height: calc(100vh / var(--ui-scale));
+
+  @media (min-width: 2000px) { --ui-scale: 1.15; }
+  @media (min-width: 2560px) { --ui-scale: 1.3; }
+  @media (min-width: 3200px) { --ui-scale: 1.6; }
   background: var(--color-bg-primary);
   transition: grid-template-columns $duration-panel ease;
 

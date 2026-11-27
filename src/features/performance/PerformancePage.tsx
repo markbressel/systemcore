@@ -1,4 +1,5 @@
 import { Cpu, Gauge as GaugeIcon, Grid3x3, MemoryStick, Monitor, PieChart, Thermometer } from "lucide-react";
+import { Fragment, type ReactNode } from "react";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
 import { EmptyState, LoadingState } from "../../components/feedback/States";
 import { MetricStatus } from "../../components/feedback/StatusBadge";
@@ -69,15 +70,36 @@ interface ViewProps {
   tm: TelemetryState;
 }
 
+/** Big dial + key readings, built from the Speed Test panel so every page's main dial looks the same. */
+function Hero({ title, icon: Icon, status, gauge, children }: { title: string; icon: typeof Cpu; status: ReactNode; gauge: ReactNode; children: ReactNode }) {
+  return (
+    <section className="speedtest panel perf-hero">
+      <div className="speedtest__dial">{gauge}</div>
+      <div className="speedtest__side">
+        <div className="perf-hero__head">
+          <h2 className="panel__title">
+            <Icon className="panel__icon" aria-hidden="true" /> {title}
+          </h2>
+          {status}
+        </div>
+        <div className="readout">{children}</div>
+      </div>
+    </section>
+  );
+}
+
 function CpuView({ s, tm }: ViewProps) {
   const { hardware } = useHardware();
   const { cpu } = s;
   const cores = cpu.perCorePercent.value;
   return (
     <>
-      <HardwareCard title={hardware?.cpu.brand ?? t("Processor")} icon={Cpu} aside={<MetricStatus status={cpu.usagePercent.status} source={cpu.usagePercent.source} />}>
-        <div className="readout">
-          <Gauge size="md" label={t("CPU Usage")} value={cpu.usagePercent.status === "available" ? cpu.usagePercent.value : null} />
+      <Hero
+        title={hardware?.cpu.brand ?? t("Processor")}
+        icon={Cpu}
+        status={<MetricStatus status={cpu.usagePercent.status} source={cpu.usagePercent.source} />}
+        gauge={<Gauge label={t("CPU Usage")} value={cpu.usagePercent.status === "available" ? cpu.usagePercent.value : null} />}
+      >
           <div>
             <div className="readout__label">{t("Current frequency")}</div>
             <div className="readout__value readout__value--sm" title={t("May report base clock on some systems")}>
@@ -88,7 +110,9 @@ function CpuView({ s, tm }: ViewProps) {
             <div className="readout__label">{t("Temperature")}</div>
             <div className="readout__value readout__value--sm"><MetricValue metric={cpu.temperatureC} format={(v) => [v.toFixed(0), "°C"]} /></div>
           </div>
-        </div>
+      </Hero>
+
+      <HardwareCard title={t("Details")} icon={Cpu}>
         <PerformanceChart title={t("Total utilization · %")} size="lg" max={100} format={fmtPct} stale={tm.stale} series={[{ data: tm.history.cpu, color: "var(--color-chart-cpu)", label: "CPU" }]} />
         <StatList
           items={[
@@ -130,9 +154,12 @@ function MemoryView({ s, tm }: ViewProps) {
   const smoothUsed = useSmoothValue(usedPct);
   return (
     <>
-      <HardwareCard title={t("Physical memory")} icon={MemoryStick} aside={<MetricStatus status={mem.usagePercent.status} source={mem.usagePercent.source} />}>
-        <div className="readout">
-          <Gauge size="md" label={t("Memory")} value={mem.usagePercent.status === "available" ? mem.usagePercent.value : null} />
+      <Hero
+        title={t("Physical memory")}
+        icon={MemoryStick}
+        status={<MetricStatus status={mem.usagePercent.status} source={mem.usagePercent.source} />}
+        gauge={<Gauge label={t("Memory")} value={mem.usagePercent.status === "available" ? mem.usagePercent.value : null} />}
+      >
           <div>
             <div className="readout__label">{t("In use")}</div>
             <div className="readout__value"><MetricValue metric={mem.usedBytes} format={bytes} /></div>
@@ -141,7 +168,9 @@ function MemoryView({ s, tm }: ViewProps) {
             <div className="readout__label">{t("Available")}</div>
             <div className="readout__value readout__value--sm"><MetricValue metric={mem.availableBytes} format={bytes} /></div>
           </div>
-        </div>
+      </Hero>
+
+      <HardwareCard title={t("Details")} icon={MemoryStick}>
         <PerformanceChart title={t("Memory utilization · %")} size="lg" max={100} format={fmtPct} stale={tm.stale} series={[{ data: tm.history.memory, color: "var(--color-chart-memory)", label: t("Memory") }]} />
       </HardwareCard>
 
@@ -192,9 +221,13 @@ function GpuView({ s, tm }: ViewProps) {
         const total = g.vramTotalBytes.value;
         const vramPct = used != null && total ? (used / total) * 100 : null;
         return (
-          <HardwareCard key={g.id} title={g.model ?? t("Unknown GPU")} icon={Monitor} aside={<MetricStatus status={g.usagePercent.status} source={g.usagePercent.source} />}>
-            <div className="readout">
-              <Gauge size="md" label={t("GPU Usage")} value={g.usagePercent.status === "available" ? g.usagePercent.value : null} />
+          <Fragment key={g.id}>
+          <Hero
+            title={g.model ?? t("Unknown GPU")}
+            icon={Monitor}
+            status={<MetricStatus status={g.usagePercent.status} source={g.usagePercent.source} />}
+            gauge={<Gauge label={t("GPU Usage")} value={g.usagePercent.status === "available" ? g.usagePercent.value : null} />}
+          >
               <div>
                 <div className="readout__label">{t("Dedicated memory")}</div>
                 <div className="readout__value readout__value--sm"><MetricValue metric={g.vramUsedBytes} format={bytes} /></div>
@@ -207,7 +240,8 @@ function GpuView({ s, tm }: ViewProps) {
                 <div className="readout__label">{t("Power draw")}</div>
                 <div className="readout__value readout__value--sm"><MetricValue metric={g.powerWatts} format={(v) => [v.toFixed(1), "W"]} /></div>
               </div>
-            </div>
+          </Hero>
+          <HardwareCard title={t("Details")} icon={Monitor}>
             {i === 0 && (
               <PerformanceChart title={t("GPU utilization · %")} size="lg" max={100} format={fmtPct} stale={tm.stale} series={[{ data: tm.history.gpu, color: "var(--color-chart-gpu)", label: "GPU" }]} />
             )}
@@ -240,6 +274,7 @@ function GpuView({ s, tm }: ViewProps) {
               </div>
             </div>
           </HardwareCard>
+          </Fragment>
         );
       })}
     </>

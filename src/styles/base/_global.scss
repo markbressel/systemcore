@@ -50,8 +50,9 @@ h3 {
   font-weight: $weight-semibold;
 }
 
-// Subtle, still-visible dark scrollbars (spec §18.1).
+// Thin scrollbars in the accent color.
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-surface-active) transparent;
+  // The user's accent color, so the scrollbar is easy to spot.
+  scrollbar-color: var(--color-accent) transparent;
 }

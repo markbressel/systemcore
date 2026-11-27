@@ -1,4 +1,4 @@
-import { useEffect, useState, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { HISTORY_LENGTH } from "../../stores/telemetry";
 import { StatusBadge } from "../feedback/StatusBadge";
 import { t } from "../../lib/i18n";
@@ -28,8 +28,9 @@ interface Props {
 
 const liveAgo = (n: number) => (n === 0 ? t("now") : t("{n}s ago", { n }));
 
-// Gaps (null) break the line instead of being drawn as zero.
-function paths(data: (number | null)[], max: number, length: number) {
+// Gaps (null) break the line instead of being drawn as zero. Coordinates are in pixels (sx per slot,
+// sy per percent of height): a stretched viewBox renders jagged lines in Chromium.
+function paths(data: (number | null)[], max: number, length: number, sx: number, sy: number) {
   const offset = length - data.length;
   const segments: [number, number][][] = [];
   let cur: [number, number][] = [];
@@ -38,13 +39,13 @@ function paths(data: (number | null)[], max: number, length: number) {
       if (cur.length) segments.push(cur);
       cur = [];
     } else {
-      cur.push([offset + i, 100 - (Math.min(v, max) / max) * 100]);
+      cur.push([(offset + i) * sx, (100 - (Math.min(v, max) / max) * 100) * sy]);
     }
   });
   if (cur.length) segments.push(cur);
   return segments.map((seg) => {
     const line = seg.map(([x, y], i) => `${i ? "L" : "M"}${x},${y}`).join("");
-    return { line, area: `${line}L${seg[seg.length - 1][0]},100L${seg[0][0]},100Z` };
+    return { line, area: `${line}L${seg[seg.length - 1][0]},${100 * sy}L${seg[0][0]},${100 * sy}Z` };
   });
 }
 
@@ -53,6 +54,17 @@ const valueAt = (data: (number | null)[], slot: number, length: number) => data[
 export function PerformanceChart({ title, series, format, max, size = "md", stale, length = HISTORY_LENGTH, startLabel, agoLabel = liveAgo }: Props) {
   const LAST = length - 1;
   const [hover, setHover] = useState<number | null>(null);
+  const plot = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = plot.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setBox({ w: e.contentRect.width, h: e.contentRect.height }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const sx = box.w / LAST;
+  const sy = box.h / 100;
   // Each new sample restarts a one-step scroll animation, so the trace glides left instead of jumping.
   const [sample, setSample] = useState(0);
   const firstData = series[0]?.data;
@@ -86,20 +98,22 @@ export function PerformanceChart({ title, series, format, max, size = "md", stal
         </div>
       )}
       <div
+        ref={plot}
         className="chart__plot"
         onPointerMove={interactive ? onMove : undefined}
         onPointerLeave={interactive ? () => setHover(null) : undefined}
       >
-        <svg viewBox={`0 0 ${LAST} 100`} preserveAspectRatio="none" role="img" aria-label={`${title ?? t("History")}, ${startLabel ?? t("last {length} seconds", { length })}. ${t("Latest:")} ${summary}`}>
+        <svg viewBox={`0 0 ${box.w || 1} ${box.h || 1}`} style={{ ["--chart-step" as string]: `${sx}px` }} role="img" aria-label={`${title ?? t("History")}, ${startLabel ?? t("last {length} seconds", { length })}. ${t("Latest:")} ${summary}`}>
           {[25, 50, 75].map((y) => (
-            <line key={y} x1="0" x2={LAST} y1={y} y2={y} className="chart__grid" />
+            <line key={y} x1="0" x2={box.w} y1={y * sy} y2={y * sy} className="chart__grid" />
           ))}
           <g className="chart__scroll" key={sample}>
             {series.map((s) =>
-              paths(s.data, scale, length).map((p, i) => (
+              box.w > 0 &&
+              paths(s.data, scale, length, sx, sy).map((p, i) => (
                 <g key={`${s.label}${i}`}>
                   <path d={p.area} fill={s.color} opacity="0.08" />
-                  <path d={p.line} fill="none" stroke={s.color} strokeWidth="1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                  <path d={p.line} fill="none" stroke={s.color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
                 </g>
               )),
             )}

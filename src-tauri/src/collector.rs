@@ -35,12 +35,14 @@ const SRC_FREQ: &str = "PDH Processor Information (Task Manager method)";
 const SRC_FREQ_FALLBACK: &str = "CallNtPowerInformation (may report base clock)";
 const SRC_TEMP: &str = "WMI thermal zone";
 const SRC_LHM: &str = "LibreHardwareMonitor (WMI)";
+const SRC_SMN: &str = "AMD SMU sensor (PawnIO)";
 const SRC_GPU: &str = "D3DKMT / PDH";
 const SRC_NVML: &str = "NVIDIA NVML";
 const SRC_PDH_GPU: &str = "PDH GPU Adapter Memory";
 const SRC_COMMIT: &str = "GetPerformanceInfo";
 
-const NOTE_CPU_TEMP: &str = "Needs LibreHardwareMonitor";
+const NOTE_CPU_TEMP: &str = "Needs the PawnIO driver";
+const NOTE_CPU_TEMP_ADMIN: &str = "Run SystemCore as administrator";
 const NOTE_NVIDIA_ONLY: &str = "NVIDIA GPUs only for now";
 const NOTE_FPS_ADMIN: &str = "Run SystemCore as administrator to measure FPS";
 const NOTE_NO_FRAMES: &str = "This app is not rendering frames";
@@ -229,6 +231,11 @@ impl Collector {
     }
 
     fn refresh_temperature(&mut self, now: u64) {
+        // Ryzen die sensor through the PawnIO driver (elevated app); LibreHardwareMonitor if it runs; else ACPI.
+        if let Some(t) = win::pawnio::amd_cpu_temperature() {
+            self.temperature = Metric::ok(t, "°C", SRC_SMN, now);
+            return;
+        }
         if let Some(t) = win::wmi_sources::lhm_cpu_temperature() {
             self.temperature = Metric::ok(t, "°C", SRC_LHM, now);
             return;
@@ -238,7 +245,8 @@ impl Collector {
             c.refresh(true);
             c.iter().filter_map(|x| x.temperature()).filter(|t| t.is_finite() && *t > 0.0).reduce(f32::max)
         });
-        self.temperature = Metric::from_option(zone, "°C", SRC_TEMP, now, Status::Unsupported).with_note(NOTE_CPU_TEMP);
+        let note = if win::pawnio::installed() { NOTE_CPU_TEMP_ADMIN } else { NOTE_CPU_TEMP };
+        self.temperature = Metric::from_option(zone, "°C", SRC_TEMP, now, Status::Unsupported).with_note(note);
     }
 
     fn refresh_memory(&mut self, now: u64) {
@@ -604,6 +612,11 @@ pub fn spawn(app: AppHandle, shared: Shared, prefs: SharedPrefs, hist: SharedHis
                     }
                 }
 
+                if c.game.fullscreen && c.due(2) {
+                    if let Some(h) = app.get_webview_window("overlay").and_then(|w| w.hwnd().ok()) {
+                        win::system::keep_on_top(h.0 as isize);
+                    }
+                }
                 let was_fullscreen = c.game.fullscreen;
                 c.refresh_game(now);
                 if p_now.auto_overlay && c.game.fullscreen != was_fullscreen {

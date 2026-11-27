@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { IgnitionSplash } from "../features/splash/IgnitionSplash";
 import { AppShell } from "../components/layout/AppShell";
-import { PageErrorBoundary } from "../components/feedback/States";
+import { LoadingState, PageErrorBoundary } from "../components/feedback/States";
 import type { PageId } from "../components/layout/navigation";
 import { BenchmarkPage } from "../features/benchmark/BenchmarkPage";
+import { DisplayPage } from "../features/display/DisplayPage";
 import { HardwarePage } from "../features/hardware/HardwarePage";
 import { HistoryPage } from "../features/history/HistoryPage";
 import { NetworkPage } from "../features/network/NetworkPage";
@@ -14,10 +15,15 @@ import { SettingsPage } from "../features/settings/SettingsPage";
 import { SpeedTestPage } from "../features/speedtest/SpeedTestPage";
 import { StartupPage } from "../features/startup/StartupPage";
 import { StoragePage } from "../features/storage/StoragePage";
+import { startDisplay } from "../stores/display";
 import { startJournal } from "../stores/journal";
-import { startAppSettings } from "../stores/settings";
+import { startLighting } from "../stores/lighting";
+import { startAppearance, startAppSettings } from "../stores/settings";
 import { startTelemetry } from "../stores/telemetry";
 import { startUpdateChecks } from "../stores/update";
+
+// three.js is large: load the 3D lighting page only when it is opened.
+const LightingPage = lazy(() => import("../features/lighting/LightingPage").then((m) => ({ default: m.LightingPage })));
 
 export function App() {
   const [page, setPage] = useState<PageId>("overview");
@@ -28,7 +34,10 @@ export function App() {
   useEffect(startTelemetry, []);
   useEffect(startUpdateChecks, []);
   useEffect(startAppSettings, []);
+  useEffect(startAppearance, []);
   useEffect(startJournal, []);
+  useEffect(startLighting, []);
+  useEffect(startDisplay, []);
 
   const openPerformance = (tab: PerfTab) => {
     setPerfTab(tab);
@@ -48,6 +57,8 @@ export function App() {
       {page === "hardware" && <HardwarePage />}
       {page === "storage" && <StoragePage />}
       {page === "network" && <NetworkPage />}
+      {page === "display" && <DisplayPage />}
+      {(page === "lighting" || page === "peripherals") && <Suspense fallback={<LoadingState />}><LightingPage scope={page === "lighting" ? "pc" : "peripherals"} /></Suspense>}
       {page === "speedtest" && <SpeedTestPage />}
       {page === "benchmark" && <BenchmarkPage />}
       {page === "startup" && <StartupPage />}

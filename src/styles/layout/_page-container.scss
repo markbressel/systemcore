@@ -2,6 +2,10 @@
 
 .page {
   position: relative;
+  // Wide windows: keep the content at a readable width, centered, instead of stretching it edge to edge.
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: $space-6;

@@ -1,0 +1,331 @@
+@use "../abstracts" as *;
+
+.lighting {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  gap: $space-5;
+
+  @include below($bp-compact) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  &__view {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  &__scene {
+    position: relative;
+    flex: 1;
+    min-height: clamp(380px, 58vh, 680px);
+    touch-action: none;
+    background: #14171c; // same studio backdrop as the 3D scene (stage.ts), in both themes
+
+    // Absolute fill: the canvas always covers the whole view, whatever height the grid row gets.
+    canvas {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+  }
+
+  &__legend {
+    padding: $space-2 $space-4;
+    color: var(--color-text-muted);
+    font-size: $font-xs;
+    border-top: 1px solid var(--color-border);
+  }
+
+  &__side {
+    display: flex;
+    flex-direction: column;
+    gap: $space-4;
+  }
+
+  &__facts {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: $space-1 $space-4;
+    font-size: $font-sm;
+
+    dt {
+      color: var(--color-text-secondary);
+    }
+  }
+
+  &__picker {
+    justify-content: flex-start;
+    max-width: none;
+  }
+
+  &__chip {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    box-shadow: 0 0 8px currentcolor;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__device {
+    display: flex;
+    align-items: center;
+    gap: $space-3;
+    width: 100%;
+    padding: $space-3 $space-4;
+    text-align: left;
+    border-top: 1px solid var(--color-border);
+
+    &:hover,
+    &--active {
+      background: var(--color-surface-active);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-accent);
+      outline-offset: -2px;
+    }
+  }
+
+  &__device-name {
+    flex: 1;
+    font-weight: $weight-semibold;
+  }
+
+  &__device-meta {
+    color: var(--color-text-secondary);
+    font-size: $font-sm;
+  }
+}
+
+.lighting__sync .setting__control {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+}
+
+.lighting__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-2;
+  margin-top: auto;
+}
+
+// ---- guide: step bar and legend ----
+.lighting__steps {
+  position: absolute;
+  top: $space-3;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  gap: $space-1;
+  margin: 0;
+  padding: $space-1;
+  list-style: none;
+  background: rgb(10 12 16 / 0.72);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 999px;
+  transform: translateX(-50%);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
+.lighting__step {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  padding: $space-1 $space-3;
+  color: rgb(255 255 255 / 0.45);
+  font-size: $font-sm;
+  white-space: nowrap;
+  border-radius: 999px;
+
+  &--active {
+    color: #fff;
+    background: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  }
+
+  &--done {
+    color: rgb(255 255 255 / 0.7);
+  }
+}
+
+.lighting__step-no {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  font-size: $font-xs;
+  font-weight: $weight-semibold;
+  border: 1px solid currentcolor;
+  border-radius: 50%;
+
+  .lighting__step--active & {
+    color: var(--color-text-on-accent);
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+  }
+}
+
+.lighting__view {
+  position: relative;
+}
+
+.lighting__legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-2 $space-3;
+}
+
+.lighting__legend-tip {
+  margin-left: auto;
+}
+
+.lighting__key {
+  width: 10px;
+  height: 10px;
+  margin-left: $space-2;
+  background: #6b7280;
+  border-radius: 50%;
+
+  &--rgb {
+    margin-left: 0;
+    background: var(--color-accent);
+    box-shadow: 0 0 6px var(--color-accent);
+  }
+}
+
+// ---- hotspots over the 3D canvas (positioned every frame by stage.ts) ----
+.hotspots {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.hotspot {
+  --spot-color: #9aa0a8;
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -7px 0 0 -7px; // center the dot on the anchor
+  padding: 0;
+  color: #fff;
+  pointer-events: auto;
+  cursor: pointer;
+
+  &[hidden] {
+    display: none;
+  }
+
+  &--rgb {
+    --spot-color: var(--color-accent);
+  }
+
+  &__dot {
+    position: relative;
+    flex: none;
+    width: 14px;
+    height: 14px;
+    background: var(--spot-color);
+    border: 2px solid rgb(255 255 255 / 0.9);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--spot-color);
+
+    // Pulse ring: says "you can click this".
+    &::after {
+      position: absolute;
+      inset: -6px;
+      border: 2px solid var(--spot-color);
+      border-radius: 50%;
+      content: "";
+      animation: hotspot-pulse 1.8s ease-out infinite;
+    }
+  }
+
+  &__label {
+    padding: 3px 9px;
+    font-size: $font-xs;
+    font-weight: $weight-semibold;
+    white-space: nowrap;
+    background: rgb(10 12 16 / 0.78);
+    border: 1px solid rgb(255 255 255 / 0.12);
+    border-radius: 999px;
+    transition: background $duration-hover ease, border-color $duration-hover ease;
+  }
+
+  &--rgb &__label::after {
+    margin-left: 6px;
+    color: var(--spot-color);
+    content: "RGB";
+  }
+
+  &:not(&--rgb):not(&--case) &__label {
+    color: rgb(255 255 255 / 0.6);
+  }
+
+  &--case &__label {
+    font-size: $font-sm;
+  }
+
+  &:hover &__label,
+  &:focus-visible &__label {
+    background: rgb(10 12 16 / 0.95);
+    border-color: var(--spot-color);
+  }
+
+  &:focus-visible {
+    outline: none;
+
+    .hotspot__dot {
+      outline: 2px solid #fff;
+      outline-offset: 3px;
+    }
+  }
+}
+
+@keyframes hotspot-pulse {
+  from {
+    opacity: 0.9;
+    transform: scale(0.6);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hotspot__dot::after {
+    animation: none;
+    opacity: 0.5;
+  }
+}
+
+.lighting__driver {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+
+  span {
+    flex: 1;
+  }
+}

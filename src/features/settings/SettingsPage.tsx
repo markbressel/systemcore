@@ -3,12 +3,12 @@ import { BellRing, Gamepad2, Palette, PictureInPicture2, Power, ShieldCheck } fr
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { PageContainer } from "../../components/layout/PageContainer";
 import { toggleOverlayWindow, setAppLanguage, updateOverlay, updateSettings, useOverlayOpen, useSettings, type AlertSettings, type OverlayRow, type Theme } from "../../stores/settings";
-import { isElevated, restartAsAdmin } from "../../lib/tauri";
+import { enableFso, fsoStatus, isElevated, restartAsAdmin } from "../../lib/tauri";
 import { CORNERS } from "../overlay/placement";
 import { SettingsDial } from "./SettingsDial";
 import { t } from "../../lib/i18n";
 
-function Switch({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
+export function Switch({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
   return (
     <button type="button" role="switch" aria-checked={checked} aria-label={t(label)} disabled={disabled} className="switch" onClick={() => onChange(!checked)}>
       <span className="switch__thumb" />
@@ -30,7 +30,7 @@ function SettingRow({ title, hint, control, disabled }: { title: string; hint: s
 
 function Section({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return (
-    <section className="panel settings">
+    <section className="settings">
       <div className="panel__header">
         <h2 className="panel__title">
           {icon} {t(title)}
@@ -132,6 +132,12 @@ export function SettingsPage() {
     }
   };
   const setAlert = (patch: Partial<AlertSettings>) => updateSettings("alerts", patch);
+  const [fso, setFso] = useState<{ disabledGlobally: boolean; disabledFor: string[] } | null>(null);
+  const [fsoFixed, setFsoFixed] = useState(false);
+  useEffect(() => {
+    fsoStatus().then(setFso).catch(() => setFso(null));
+  }, [fsoFixed]);
+  const fsoOff = !!fso && (fso.disabledGlobally || fso.disabledFor.length > 0);
   const [elevated, setElevated] = useState<boolean | null>(null);
   const [elevateError, setElevateError] = useState<string | null>(null);
   useEffect(() => {
@@ -143,11 +149,11 @@ export function SettingsPage() {
       title={t("Settings")}
       subtitle={t("Saved on this PC. Changes apply immediately.")}
     >
-      <div className="settings-layout">
-        <div className="settings-layout__dial">
+      <section className="speedtest panel settings-panel">
+        <div className="speedtest__dial settings-panel__dial">
           <SettingsDial items={TABS} value={tab} onChange={setTab} />
         </div>
-        <div className="settings-layout__content">
+        <div className="speedtest__side settings-panel__content">
       {tab === "gaming" && (
       <Section icon={<Gamepad2 className="panel__icon" aria-hidden="true" />} title="Gaming">
         <SettingRow
@@ -176,6 +182,29 @@ export function SettingsPage() {
           title="Show overlay in games"
           hint="Opens the overlay when an app goes fullscreen (or borderless fullscreen) and closes it when you leave. Fullscreen videos count too."
           control={<Switch label="Show overlay in games" checked={o.autoShow} onChange={(autoShow) => updateOverlay({ autoShow })} />}
+        />
+        <SettingRow
+          title="Overlay over fullscreen games"
+          hint={
+            fsoOff
+              ? fso!.disabledGlobally
+                ? "Fullscreen optimizations are switched off for all games, so Windows draws nothing over exclusive fullscreen. Turn them back on, then restart the game."
+                : t("Fullscreen optimizations are switched off for {count} program(s), so the overlay cannot show over them in exclusive fullscreen. Turn them back on, then restart the game.", { count: fso!.disabledFor.length })
+              : fsoFixed
+                ? "Done. Restart the game to see the overlay in fullscreen."
+                : "Fullscreen optimizations are on, so the overlay can show over fullscreen games. If a game still hides it, set the game to borderless fullscreen."
+          }
+          control={
+            fsoOff ? (
+              <button type="button" className="button button--primary" onClick={() => enableFso().then(() => setFsoFixed(true)).catch(() => {})}>
+                {t("Turn back on")}
+              </button>
+            ) : (
+              <span className="setting__status">
+                <ShieldCheck aria-hidden="true" /> {t("OK")}
+              </span>
+            )
+          }
         />
         <SettingRow
           title="Game mode"
@@ -362,7 +391,7 @@ export function SettingsPage() {
         <Section icon={<Palette className="panel__icon" aria-hidden="true" />} title="Appearance">
           <SettingRow
             title="Theme"
-            hint="Colors of the main window. The overlay stays dark so it reads well over games."
+            hint="Colors of the app and the overlay."
             control={
               <div className="tabs" role="radiogroup" aria-label={t("Theme")}>
                 {THEMES.map((th) => (
@@ -435,7 +464,7 @@ export function SettingsPage() {
         </Section>
       )}
         </div>
-      </div>
+      </section>
     </PageContainer>
   );
 }

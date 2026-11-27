@@ -2,6 +2,8 @@
 
 .gauge {
   --gauge-color: var(--color-accent);
+  // Text sizes are a share of the dial's width (cqi), so a dial of any size keeps the same proportions.
+  container-type: inline-size;
   position: relative;
   aspect-ratio: 1;
   width: 100%;
@@ -89,12 +91,8 @@
   &__value {
     @include display-num;
     color: var(--color-text-primary);
-    font-size: 46px;
+    font-size: 16cqi;
     line-height: 1;
-  }
-
-  &--md &__value {
-    font-size: 30px;
   }
 
   &__unit {
@@ -107,19 +105,15 @@
     margin-top: 2px;
     color: var(--color-accent);
     font-family: $font-family-display;
-    font-size: $font-sm;
+    font-size: clamp(10px, 4.4cqi, 22px);
     font-weight: $weight-semibold;
     letter-spacing: 0.04em;
   }
 
-  &--md &__label {
-    font-size: 10px;
-  }
-
   &__missing {
-    max-width: 60px;
+    max-width: 24cqi;
     color: var(--color-text-muted);
-    font-size: 10px;
+    font-size: clamp(10px, 3.6cqi, 16px);
     text-align: center;
   }
 }

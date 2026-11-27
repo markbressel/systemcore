@@ -121,14 +121,14 @@
   }
 }
 
-// One sample step = 1 user unit of the chart's viewBox; slide in over the 1 s sampling interval.
+// One sample step (--chart-step, in pixels); slide in over the 1 s sampling interval.
 .chart__scroll {
   animation: chart-scroll 1000ms linear both;
 }
 
 @keyframes chart-scroll {
   from {
-    transform: translateX(1px);
+    transform: translateX(var(--chart-step, 0px));
   }
   to {
     transform: none;

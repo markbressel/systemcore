@@ -1,10 +1,15 @@
 // The only module that talks to the Rust backend.
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { AlertSettings } from "../stores/settings";
-import type { CleanupTarget, DisksSnapshot, FolderScan, GameSession, HardwareInfo, HistoryPoint, Latest, Priority, ProcessesSnapshot, SpeedProgress, StartupApp, SystemSnapshot } from "../types/telemetry";
+import type { AlertSettings, ColorAdjust } from "../stores/settings";
+import type { CleanupTarget, DisksSnapshot, FolderScan, GameSession, HardwareInfo, HistoryPoint, Latest, Priority, ProcessesSnapshot, DisplayInfo, RgbDevice, SpeedProgress, StartupApp, SystemSnapshot } from "../types/telemetry";
 
 export const getLatest = () => invoke<Latest>("get_latest");
+export const listDisplays = () => invoke<DisplayInfo[]>("list_displays");
+export const setDisplayColor = (id: string, adjust: ColorAdjust) => invoke<void>("set_display_color", { id, adjust });
+export const setDisplayHardware = (id: string, brightness: number | null, contrast: number | null) => invoke<void>("set_display_hardware", { id, brightness, contrast });
+export const listRgbDevices = () => invoke<RgbDevice[]>("list_rgb_devices");
+export const setRgbColor = (id: string, color: string) => invoke<void>("set_rgb_color", { id, color });
 export const getHardware = () => invoke<HardwareInfo>("get_hardware");
 export const startSpeedTest = () => invoke<SpeedProgress>("start_speed_test");
 export const cancelSpeedTest = () => invoke<void>("cancel_speed_test");
@@ -22,6 +27,7 @@ export const listStartupApps = () => invoke<StartupApp[]>("list_startup_apps");
 export const setStartupEnabled = (id: string, enabled: boolean) => invoke<void>("set_startup_enabled", { id, enabled });
 export const getHistory = (minutes: number) => invoke<HistoryPoint[]>("get_history", { minutes });
 export const isElevated = () => invoke<boolean>("is_elevated");
+export const hardwareDriverStatus = () => invoke<{ installed: boolean; elevated: boolean }>("hardware_driver_status");
 export const restartAsAdmin = () => invoke<void>("restart_as_admin");
 /** Resolves to the saved file's path (in Downloads). */
 /** Loads every CPU core for `seconds`; resolves to the score (work units per second). */
@@ -35,6 +41,9 @@ export const cleanTarget = (id: string) => invoke<number>("clean_target", { id }
 export const revealPath = (path: string) => invoke<void>("reveal_path", { path });
 /** Fires when a game session (2+ minutes fullscreen) ends. */
 export const onGameSession = (cb: (s: GameSession) => void) => listen<GameSession>("game:session", (e) => cb(e.payload));
+/** Whether fullscreen optimizations are off (then nothing can show over exclusive fullscreen games). */
+export const fsoStatus = () => invoke<{ disabledGlobally: boolean; disabledFor: string[] }>("fso_status");
+export const enableFso = () => invoke<void>("enable_fso");
 export const saveReport = (text: string) => invoke<string>("save_report", { text });
 /** Fires whenever the overlay opens or closes, whoever did it (UI, tray, hotkey). */
 export const onOverlayChanged = (cb: (open: boolean) => void) => listen<boolean>("overlay:changed", (e) => cb(e.payload));

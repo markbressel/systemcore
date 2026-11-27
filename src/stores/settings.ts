@@ -61,7 +61,40 @@ export interface AppearanceSettings {
   language: Language;
 }
 
+export interface LightingSettings {
+  /** Every RGB device takes the app's accent color and follows it when it changes. */
+  followAccent: boolean;
+  /** Manual color per device id (#rrggbb), used while followAccent is off. */
+  colors: Record<string, string>;
+}
+
+/** Picture adjustment (gamma ramp + NVIDIA vibrance). Neutral: 0, 0, 1, 6500, null. */
+export interface ColorAdjust {
+  brightness: number;
+  contrast: number;
+  gamma: number;
+  temperature: number;
+  /** NVIDIA vibrance level; null keeps the driver's own setting. */
+  vibrance: number | null;
+}
+
+export interface GameProfile {
+  /** Program name as Windows reports it, e.g. "cs2.exe". */
+  exe: string;
+  color: ColorAdjust;
+}
+
+export interface DisplaySettings {
+  /** Desktop picture per monitor (GDI device name). */
+  monitors: Record<string, ColorAdjust>;
+  profiles: GameProfile[];
+  /** Apply a game's profile while it is in front. */
+  autoProfiles: boolean;
+}
+
 export interface Settings {
+  display: DisplaySettings;
+  lighting: LightingSettings;
   overlay: OverlaySettings;
   startup: StartupSettings;
   alerts: AlertSettings;
@@ -70,6 +103,8 @@ export interface Settings {
 
 const KEY = "systemcore.settings";
 const DEFAULTS: Settings = {
+  display: { monitors: {}, profiles: [], autoProfiles: true },
+  lighting: { followAccent: false, colors: {} },
   overlay: {
     corner: "top-right",
     freeMove: false,
@@ -90,6 +125,8 @@ function load(): Settings {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? "{}");
     return {
+      display: { ...DEFAULTS.display, ...raw.display },
+      lighting: { ...DEFAULTS.lighting, ...raw.lighting },
       overlay: { ...DEFAULTS.overlay, ...raw.overlay, rows: { ...DEFAULTS.overlay.rows, ...raw.overlay?.rows } },
       startup: { ...DEFAULTS.startup, ...raw.startup },
       alerts: { ...DEFAULTS.alerts, ...raw.alerts },
@@ -139,6 +176,8 @@ export function setAppLanguage(language: Language) {
 export const updateOverlay = (patch: Partial<OverlaySettings>) => updateSettings("overlay", patch);
 
 export const useSettings = () => useSyncExternalStore(subscribe, () => settings);
+export const getSettings = () => settings;
+export const subscribeSettings = subscribe;
 
 /** Overlay window open/closed; the backend reports every change (UI, tray, hotkey, the overlay's own X). */
 export const useOverlayOpen = () => useSyncExternalStore(subscribe, () => overlayOpen);
@@ -191,13 +230,6 @@ export function startAppSettings() {
   };
   push();
   listeners.add(push);
-  // Theme applies to the main window only; the overlay keeps the dark tokens over games.
-  const applyTheme = () => {
-    document.documentElement.dataset.theme = settings.appearance.theme;
-    applyAccent(settings.appearance.accent);
-  };
-  applyTheme();
-  listeners.add(applyTheme);
 
   void (async () => {
     // The window starts hidden; at login it stays in the tray unless the user wants it shown.
@@ -207,7 +239,19 @@ export function startAppSettings() {
 
   return () => {
     listeners.delete(push);
-    listeners.delete(applyTheme);
+  };
+}
+
+/** Theme and accent color, in every window (main and overlay); follows changes from the other window. */
+export function startAppearance() {
+  const apply = () => {
+    document.documentElement.dataset.theme = settings.appearance.theme;
+    applyAccent(settings.appearance.accent);
+  };
+  apply();
+  listeners.add(apply);
+  return () => {
+    listeners.delete(apply);
   };
 }
 

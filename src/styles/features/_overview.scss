@@ -26,6 +26,7 @@
 
 .cockpit {
   position: relative;
+  container-type: inline-size;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.62fr) minmax(0, 1fr);
   align-items: center;
@@ -61,7 +62,9 @@
     justify-content: center;
     padding: 6%;
 
+    // Fill the lobe at any window size instead of stopping at the default dial size.
     .gauge {
+      max-width: none;
       transition: filter $duration-hover ease;
     }
 
@@ -86,7 +89,7 @@
   }
 
   &__big {
-    font-size: 64px;
+    font-size: clamp(40px, 5cqi, 96px);
     line-height: 1;
   }
 
@@ -107,7 +110,7 @@
 
   &__sub {
     font-family: $font-family-display;
-    font-size: $font-xl;
+    font-size: clamp(16px, 1.6cqi, 30px);
     font-weight: $weight-semibold;
   }
 
@@ -120,6 +123,97 @@
     strong {
       color: var(--color-text-primary);
       font-weight: $weight-semibold;
+    }
+  }
+
+  &__middle {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: $space-3;
+  }
+
+  // Coolant-style C–H dials side by side under the center display, like temp + fuel in a car.
+  &__temps {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: $space-3;
+  }
+
+  &__temp {
+    svg {
+      display: block;
+      width: 100%;
+      overflow: visible;
+    }
+  }
+
+  &__temp-track,
+  &__temp-red {
+    fill: none;
+    stroke-width: 4;
+    stroke-linecap: round;
+  }
+
+  &__temp-track { stroke: var(--color-surface-active); }
+  &__temp-red { stroke: var(--color-danger); }
+
+  &__temp-end {
+    fill: var(--color-text-secondary);
+    font-family: $font-family-display;
+    font-size: 10px;
+    font-weight: $weight-semibold;
+  }
+
+  &__temp-needle {
+    stroke: var(--color-accent);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+  }
+
+  &__temp--hot &__temp-needle { stroke: var(--color-danger); }
+
+  &__temp-hub { fill: var(--color-text-primary); }
+
+  &__temp-value {
+    fill: var(--color-text-primary);
+    font-family: $font-family-display;
+    font-size: 11px;
+    font-weight: $weight-semibold;
+  }
+
+  &__info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $space-2;
+  }
+
+  &__plate {
+    min-width: 0;
+    white-space: nowrap;
+    animation: cockpit-lcd 300ms ease-out;
+  }
+
+  &__arrow {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    color: var(--color-text-secondary);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: $radius-md;
+    transition: color $duration-hover ease, background $duration-hover ease;
+
+    &:hover {
+      color: var(--color-accent);
+      background: var(--color-surface-active);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 1px;
     }
   }
 
@@ -334,4 +428,8 @@
     &--2 { border-color: var(--color-warning); }
     &--3 { border-color: var(--color-danger); }
   }
+}
+
+@keyframes cockpit-lcd {
+  from { opacity: 0; }
 }

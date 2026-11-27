@@ -157,7 +157,15 @@ pub fn run() {
             commands::scan_folder,
             commands::cleanup_targets,
             commands::clean_target,
-            commands::reveal_path
+            commands::reveal_path,
+            commands::fso_status,
+            commands::enable_fso,
+            commands::list_rgb_devices,
+            commands::hardware_driver_status,
+            commands::list_displays,
+            commands::set_display_color,
+            commands::set_display_hardware,
+            commands::set_rgb_color
         ])
         .run(tauri::generate_context!())
         .expect("error while running SystemCore");

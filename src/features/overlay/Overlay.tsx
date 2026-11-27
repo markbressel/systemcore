@@ -4,7 +4,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import logo from "../../assets/logo.png";
 import { formatBytes, formatRate } from "../../lib/format";
 import { setOverlay, showMain } from "../../lib/tauri";
-import { updateOverlay, useSettings } from "../../stores/settings";
+import { startAppearance, updateOverlay, useSettings } from "../../stores/settings";
 import { startTelemetry, useTelemetry } from "../../stores/telemetry";
 import type { Metric } from "../../types/telemetry";
 import { bottleneck, LIMIT_TEXT } from "./bottleneck";
@@ -52,6 +52,7 @@ function Chip({ label, tone, percent, extra }: { label: string; tone: RowProps["
 /** Frameless always-on-top mini window. Placement comes from Settings → Overlay. */
 export function Overlay() {
   useEffect(startTelemetry, []);
+  useEffect(startAppearance, []);
   const { system, stale } = useTelemetry();
   const { overlay: o } = useSettings();
   const movable = o.freeMove && !o.locked;
@@ -71,14 +72,21 @@ export function Overlay() {
         const r = el.getBoundingClientRect();
         await win.setSize(new LogicalSize(Math.ceil(r.width), Math.ceil(r.height)));
         if (!move) return;
-        if (o.freeMove) {
-          if (o.position) await win.setPosition(new PhysicalPosition(o.position.x, o.position.y));
-          return;
-        }
         const m = await currentMonitor();
+        const size = await win.outerSize();
+        if (o.freeMove && o.position) {
+          const p = o.position;
+          // A saved spot can be off screen after a resolution change (games often switch it in exclusive
+          // fullscreen); then fall back to the corner so the overlay stays visible.
+          const onScreen = !m || (p.x >= m.position.x && p.y >= m.position.y && p.x + size.width <= m.position.x + m.size.width && p.y + size.height <= m.position.y + m.size.height);
+          if (onScreen) {
+            await win.setPosition(new PhysicalPosition(p.x, p.y));
+            return;
+          }
+        }
         if (!m) return;
         const area = { ...m.workArea.position, ...m.workArea.size };
-        const { x, y } = cornerPosition(o.corner, area, await win.outerSize(), Math.round(16 * m.scaleFactor));
+        const { x, y } = cornerPosition(o.corner, area, size, Math.round(16 * m.scaleFactor));
         await win.setPosition(new PhysicalPosition(x, y));
       }).catch(() => {}));
     void place(true);
@@ -86,7 +94,19 @@ export function Overlay() {
     // user's last drag. Corners still re-place so a right/bottom edge stays anchored.
     const ro = new ResizeObserver(() => void place(!o.freeMove));
     ro.observe(el);
-    return () => ro.disconnect();
+    // Display mode changes (a fullscreen game switching resolution) fire no window event: poll for them.
+    let display = `${screen.width}x${screen.height}@${devicePixelRatio}`;
+    const watch = setInterval(() => {
+      const now = `${screen.width}x${screen.height}@${devicePixelRatio}`;
+      if (now !== display) {
+        display = now;
+        void place(true);
+      }
+    }, 1000);
+    return () => {
+      ro.disconnect();
+      clearInterval(watch);
+    };
     // o.position is deliberately not a dependency: re-placing on every saved drag would fight the drag.
   }, [o.freeMove, o.corner, o.scale, o.compact, rowsKey]);
 
